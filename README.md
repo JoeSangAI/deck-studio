@@ -1,53 +1,26 @@
-# Deck Studio / PPT 工作台
+<div align="center">
 
-> 先锁定内容，再为每一页选择可编辑、纯图或混合路线，最终交付一套能用、能改、能验证的 PPT。
+# Deck Studio
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB.svg)](https://www.python.org/)
+### 一套 PPT，逐页选择最合适的做法
 
-Deck Studio 是面向 Codex、Claude Code 等 Agent 的统一 PPT 生产 Skill。它同时支持从零制作、已有稿
-精修、合并改版和混合装配，并把内容锁定、视觉路由与最终 PPTX 验收放在同一条工作流里。
+面向 Codex、Claude Code 等 Agent 的统一 PPT 生产 Skill：先锁定内容，再逐页选择可编辑、纯图、混合或精修路线，最终验收真实 PPTX。
 
-## 一套完整 PPT，需要三个判断
+[![License: MIT](https://img.shields.io/badge/License-MIT-F0528A.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-111111.svg)](https://www.python.org/)
+[![Tests: 94 passed](https://img.shields.io/badge/tests-94%20passed-A8F04F.svg)](#本地验证)
+[![PPTX: editable](https://img.shields.io/badge/PPTX-editable-428FEA.svg)](#四种生产路线)
 
-### 内容先锁定
+</div>
 
-先把听众、目标、逐页主张和证据讲清楚，再进入正式生产。客户可见文案与内部工作注记分离，减少
-制作过程中的口径漂移。
+![Deck Studio 把内容锁定、逐页路由和最终 PPTX 验证放在同一条工作流中](assets/readme/hero-system.svg)
 
-### 每页选择合适的实现方式
+<p align="center"><sub>全部演示页面、品牌与数据均为完全虚构，不含任何客户素材。</sub></p>
 
-数据、图表和持续修改内容保持原生可编辑；封面、章节和关键情绪页可以使用整页视觉；复杂原页和
-真实资产按来源保留。整册可以灵活组合多种制作方式。
+> [!IMPORTANT]
+> **Deck Studio 是安装到 Agent 中使用的开源 Skill，不是在线网站，也不附带模型额度。** 普通 PPT 工作流、审计和验证工具全部在仓库内，不依赖 Joe 的个人目录或本机软链接。纯图页面需要由当前 Agent 提供图片能力，或在直接运行脚本时自行配置图片模型。
 
-### 验收真实文件
-
-交付前检查最终 PPTX 的文字、字体、背景、图表、媒体关系、页面路由和整册一致性。仓库包含 94 项
-回归测试，并提供一组可直接运行的审计与验证工具。
-
-## 四种生产路线
-
-| 路线 | 适合场景 | 交付重点 |
-| --- | --- | --- |
-| 可编辑 | 数据、表格、案例、多媒体、持续修改 | 原生文本、图表和对象关系 |
-| 纯图 | 演讲、发布、课程、视觉冲击优先 | 文案冻结、整页校对、统一视觉 |
-| 混合 | 客户提案、策略汇报、品牌方案 | 正文可编辑，少量关键页整图 |
-| 精修 | 已有 PPT 内容基本成立 | 保留内容关系，统一设计并修复兼容问题 |
-
-```mermaid
-flowchart LR
-    A["材料或现有 PPTX"] --> B["内容锁定"]
-    B --> C{"逐页选择路线"}
-    C --> D["可编辑"]
-    C --> E["纯图"]
-    C --> F["来源保留 / 混合"]
-    D --> G["装配与整册验证"]
-    E --> G
-    F --> G
-    G --> H["最终 PPTX"]
-```
-
-## 快速安装
+## 3 分钟安装
 
 需要 Python 3.10 或更高版本。
 
@@ -69,15 +42,51 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 ```
 
-安装后重新启动 Agent，直接提出任务即可：
+重启 Agent 后，直接描述任务：
 
 ```text
-帮我把这份材料做成一套给管理层汇报的 PPT，先梳理逐页内容，再决定哪些页面保持可编辑。
+帮我把这份材料做成一套给管理层汇报的 PPT。先梳理逐页内容，再决定哪些页面保持可编辑。
 ```
 
 ```text
-精修这份 PPT，内容不变，统一整册视觉并检查最终文件。
+精修这份 PPT。内容不变，统一整册视觉，并检查最终文件。
 ```
+
+## 它解决三个关键问题
+
+| 关键判断 | Deck Studio 的做法 | 直接收益 |
+| --- | --- | --- |
+| **内容是否定了** | 先确认听众、目标、逐页主张和证据；客户可见文案与内部工作注记分离 | 制作过程中不再反复漂移口径 |
+| **这一页该怎么做** | 每页单独选择可编辑、纯图、混合或来源保留方式 | 视觉强度与后续可修改性可以同时成立 |
+| **最后文件能否交付** | 检查最终 PPTX 的文字、字体、背景、媒体关系、页面路线与整册一致性 | 发现截图看不出来的结构与兼容问题 |
+
+**材料或旧稿 → 内容锁定 → 逐页选路 → 装配整册 → 验收最终 PPTX**
+
+## 四种生产路线
+
+![Deck Studio 为可编辑、纯图、混合和旧稿精修页面分别选择生产路线](assets/readme/route-board.svg)
+
+| 路线 | 适合场景 | 交付重点 |
+| --- | --- | --- |
+| **可编辑** | 数据、表格、案例、多媒体、持续修改 | 保留原生文本、图表和对象关系 |
+| **纯图** | 演讲、发布、课程、视觉冲击优先 | 文案冻结、逐页校对、整套视觉一致 |
+| **混合** | 客户提案、策略汇报、品牌方案 | 正文可编辑，少量关键页使用整页视觉 |
+| **精修** | 已有 PPT 内容基本成立 | 保留内容关系，统一设计并修复兼容问题 |
+
+## 交付前，检查真实文件
+
+![Deck Studio 使用整册总览和文件级审计检查最终 PPTX](assets/readme/verification-board.svg)
+
+Deck Studio 的验收对象是最终 `.pptx`。仓库提供 94 项回归测试，以及可以直接运行的整册审计、字体检查、背景一致性、页面路线完整性与改稿保真工具。
+
+## 适合哪些任务
+
+| 任务 | 输入 | 典型结果 |
+| --- | --- | --- |
+| 从零制作 | 主题、文档、Markdown、逐字稿、图片素材 | 先形成逐页内容，再生产完整 PPTX |
+| 已有稿精修 | 当前 PPTX + 明确修改目标 | 内容关系尽量保留，视觉与兼容问题被系统修复 |
+| 继续修改 | 上一版成稿 + 新反馈 | 基于完整现状更新，避免只看当前批次造成内容丢失 |
+| 合并改版 | 多份 PPT、页面或来源素材 | 统一页序、叙事、视觉系统和交付标准 |
 
 ## 它如何工作
 
@@ -87,9 +96,10 @@ python3 -m venv .venv
 4. 按页型家族统一字体、背景、边距、图像关系和改造强度。
 5. 装配最终 PPTX，并运行与任务风险匹配的验证工具。
 
-完整工作规范见 [SKILL.md](SKILL.md)。
+完整生产规范见 [SKILL.md](SKILL.md)。
 
-## 自带的质量工具
+<details>
+<summary><strong>自带的质量工具</strong></summary>
 
 - `templates/deck_audit.py`：审计整册结构、字体和资源；
 - `templates/verify_pptx.py`：核对已有稿修改后的内容与资源保真；
@@ -99,15 +109,14 @@ python3 -m venv .venv
 - `templates/verify_page_plan.py`：检查逐页内容与生产契约；
 - `scripts/contact_sheet.py`：生成整册轻量总览，用于视觉复核。
 
-## 依赖与可选能力
+</details>
 
-普通 PPT 工作流、审计工具和验证脚本都在本仓库内，不依赖本机软链接或个人目录。
+## 依赖与边界
 
-- 制作纯图页面需要可用的图片生成能力；直接运行 `scripts/gen_deck.py` 时，通过环境变量提供
-  `OPENAI_API_KEY`，不要把密钥写入仓库。
-- 分众传媒相关能力是可选扩展，仅在任务明确涉及分众知识、历史原页或媒体环境时使用。具体契约见
-  [分众集成说明](references/focusmedia-integration.md)；缺少这些扩展不会影响普通 PPT 工作流。
-- `presentations` 等专业演示文稿 Skill 可增强原生 PPTX 生产与渲染能力，但不属于本仓库内容。
+- 普通 PPT 工作流、审计工具和验证脚本都在本仓库内。
+- 制作纯图页面需要可用的图片生成能力；直接运行 `scripts/gen_deck.py` 时，通过环境变量提供 `OPENAI_API_KEY`，不要把密钥写入仓库。
+- 分众传媒相关能力是可选扩展，仅在任务明确涉及分众知识、历史原页或媒体环境时使用。具体契约见 [分众集成说明](references/focusmedia-integration.md)；缺少这些扩展不影响普通 PPT 工作流。
+- `presentations` 等专业演示文稿 Skill 可以增强原生 PPTX 生产与渲染能力，但不属于本仓库内容。
 
 ## 本地验证
 
@@ -116,9 +125,10 @@ python3 -m venv .venv
 .venv/bin/python -m pytest -q
 ```
 
-本次公开版本已在独立的 Python 3.11 环境中重新安装依赖并通过全部 94 项测试。
+当前公开版本已在独立的 Python 3.11 环境中重新安装依赖，并通过全部 94 项测试。
 
-## 目录
+<details>
+<summary><strong>项目目录</strong></summary>
 
 - `SKILL.md`：统一入口与生产路由；
 - `workflows/`：已有稿精修六阶段；
@@ -129,13 +139,14 @@ python3 -m venv .venv
 - `tests/`：回归测试；
 - `agents/openai.yaml`：Skill 展示与调用元数据。
 
-本地案例默认放在 `cases/`，该目录已被 Git 忽略，避免客户名称、项目路径和私有材料进入公共仓库。
+</details>
+
+## 公开与隐私
+
+本地案例默认放在 `cases/`，该目录已被 Git 忽略。公开仓库中的展示图只使用虚构品牌、虚构数据与通用几何图形，避免客户名称、项目路径、真实素材和私有知识进入版本历史。
 
 ## License 与来源
 
-本项目沿用 [MIT License](LICENSE)。初始纯图管线来自
-[张拼拼·XNTJ（Max Pin）的 Deck Studio](https://github.com/xntj-ai/deck-studio)，后续版本扩展了可编辑、
-混合、精修、路由和验收能力。原作者版权声明保留在 License 中。
+本项目沿用 [MIT License](LICENSE)。初始纯图管线来自 [张拼拼·XNTJ（Max Pin）的 Deck Studio](https://github.com/xntj-ai/deck-studio)，后续版本扩展了可编辑、混合、精修、路由和验收能力。原作者版权声明保留在 License 中。
 
-如果这个工作台对你有帮助，欢迎 Star，并通过
-[Issues](https://github.com/JoeSangAI/deck-studio/issues) 提交使用问题或改进建议。
+如果这个工作台对你有帮助，欢迎 Star，并通过 [Issues](https://github.com/JoeSangAI/deck-studio/issues) 提交使用问题或改进建议。

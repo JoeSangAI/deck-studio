@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1968" height="760" viewBox="0 0 1968 760" role="img" aria-labelledby="title desc">
+  <title id="title">Deck Studio 统一 PPT 工作台</title>
+  <desc id="desc">完全虚构的公开演示：内容锁定、逐页路由与 PPTX 验证被放在同一条工作流中。</desc>
+  <defs>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="oklch(0.28 0 0)" stroke-width="1" opacity="0.38"/>
+    </pattern>
+    <filter id="shadow" x="-20%" y="-30%" width="150%" height="170%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="oklch(0.02 0 0)" flood-opacity="0.62"/>
+    </filter>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="55"/>
+    </filter>
+  </defs>
+
+  <rect width="1968" height="760" fill="oklch(0.09 0 0)"/>
+  <rect width="1968" height="760" fill="url(#grid)"/>
+  <circle cx="1705" cy="80" r="240" fill="oklch(0.68 0.20 356.8)" opacity="0.24" filter="url(#soft)"/>
+  <circle cx="980" cy="740" r="220" fill="oklch(0.88 0.19 130)" opacity="0.08" filter="url(#soft)"/>
+
+  <!-- wordmark -->
+  <g transform="translate(64 56)">
+    <rect x="0" y="0" width="20" height="14" rx="2" fill="oklch(0.68 0.20 356.8)"/>
+    <rect x="25" y="0" width="20" height="14" rx="2" fill="oklch(0.97 0 0)"/>
+    <rect x="0" y="19" width="20" height="14" rx="2" fill="oklch(0.97 0 0)"/>
+    <rect x="25" y="19" width="20" height="14" rx="2" fill="oklch(0.88 0.19 130)"/>
+    <text x="64" y="27" fill="oklch(0.97 0 0)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="26" font-weight="800" letter-spacing="2">DECK STUDIO</text>
+  </g>
+
+  <text x="64" y="170" fill="oklch(0.68 0.20 356.8)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="17" font-weight="800" letter-spacing="4">AGENT-DRIVEN PPT WORKSPACE</text>
+  <text x="64" y="250" fill="oklch(0.97 0 0)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="66" font-weight="900">一套 PPT，</text>
+  <text x="64" y="330" fill="oklch(0.97 0 0)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="66" font-weight="900">逐页选择最合适的做法</text>
+  <text x="64" y="382" fill="oklch(0.69 0 0)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="24" font-weight="500">内容先锁定 · 路线逐页选 · 最后验收真实 PPTX</text>
+
+  <!-- route chips -->
+  <g font-family="Arial, 'Noto Sans SC', sans-serif" font-size="16" font-weight="800" letter-spacing="1">
+    <rect x="64" y="438" width="134" height="42" rx="21" fill="oklch(0.68 0.20 356.8)"/>
+    <text x="88" y="465" fill="oklch(0.98 0 0)">可编辑</text>
+    <rect x="210" y="438" width="108" height="42" rx="21" fill="oklch(0.22 0 0)" stroke="oklch(0.38 0 0)"/>
+    <text x="235" y="465" fill="oklch(0.97 0 0)">纯图</text>
+    <rect x="330" y="438" width="108" height="42" rx="21" fill="oklch(0.22 0 0)" stroke="oklch(0.38 0 0)"/>
+    <text x="355" y="465" fill="oklch(0.97 0 0)">混合</text>
+    <rect x="450" y="438" width="108" height="42" rx="21" fill="oklch(0.22 0 0)" stroke="oklch(0.38 0 0)"/>
+    <text x="475" y="465" fill="oklch(0.97 0 0)">精修</text>
+  </g>
+
+  <path d="M64 559H610" stroke="oklch(0.35 0 0)"/>
+  <text x="64" y="594" fill="oklch(0.69 0 0)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="16" font-weight="700" letter-spacing="1.6">SYNTHETIC DEMO · NO CLIENT MATERIAL</text>
+  <text x="64" y="626" fill="oklch(0.97 0 0)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="20" font-weight="700">从材料到可交付文件，保持同一条生产链。</text>
+
+  <!-- layered synthetic slide system -->
+  <g filter="url(#shadow)">
+    <g transform="translate(850 136) rotate(-6 300 169)">
+      <rect width="600" height="338" rx="12" fill="oklch(0.68 0.20 356.8)" stroke="oklch(0.86 0.13 357)" stroke-width="2"/>
+      <text x="34" y="48" fill="oklch(0.98 0 0)" font-family="Arial, sans-serif" font-size="14" font-weight="800" letter-spacing="2">01 · CONTENT LOCK</text>
+      <text x="34" y="105" fill="oklch(0.98 0 0)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="34" font-weight="900">每页先有一句主张</text>
+      <rect x="34" y="146" width="532" height="1" fill="oklch(0.98 0 0)" opacity="0.45"/>
+      <g fill="oklch(0.98 0 0)" opacity="0.92" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="17" font-weight="700">
+        <circle cx="44" cy="188" r="5"/><text x="63" y="194">听众与目标</text>
+        <circle cx="44" cy="229" r="5"/><text x="63" y="235">逐页主张与证据</text>
+        <circle cx="44" cy="270" r="5"/><text x="63" y="276">客户文案与工作注记分离</text>
+      </g>
+      <text x="520" y="304" fill="oklch(0.98 0 0)" font-family="Arial, sans-serif" font-size="44" font-weight="900">01</text>
+    </g>
+
+    <g transform="translate(1320 102) rotate(5 270 152)">
+      <rect width="540" height="304" rx="12" fill="oklch(0.66 0.17 255)" stroke="oklch(0.82 0.10 255)" stroke-width="2"/>
+      <text x="30" y="44" fill="oklch(0.98 0 0)" font-family="Arial, sans-serif" font-size="14" font-weight="800" letter-spacing="2">08 · ROUTE MAP</text>
+      <text x="30" y="91" fill="oklch(0.98 0 0)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="30" font-weight="900">视觉强度与可编辑性并存</text>
+      <g transform="translate(30 128)">
+        <rect width="95" height="96" rx="6" fill="oklch(0.98 0 0)" opacity="0.18"/>
+        <rect x="109" width="95" height="96" rx="6" fill="oklch(0.98 0 0)" opacity="0.34"/>
+        <rect x="218" width="95" height="96" rx="6" fill="oklch(0.98 0 0)" opacity="0.50"/>
+        <rect x="327" width="95" height="96" rx="6" fill="oklch(0.88 0.19 130)"/>
+        <text x="0" y="125" fill="oklch(0.98 0 0)" font-family="Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1">EDIT</text>
+        <text x="109" y="125" fill="oklch(0.98 0 0)" font-family="Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1">IMAGE</text>
+        <text x="218" y="125" fill="oklch(0.98 0 0)" font-family="Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1">HYBRID</text>
+        <text x="327" y="125" fill="oklch(0.12 0 0)" font-family="Arial, sans-serif" font-size="12" font-weight="900" letter-spacing="1">REFINE</text>
+      </g>
+    </g>
+
+    <g transform="translate(940 258)">
+      <rect width="820" height="430" rx="14" fill="oklch(0.97 0 0)" stroke="oklch(0.90 0 0)" stroke-width="3"/>
+      <rect x="0" y="0" width="820" height="48" rx="14" fill="oklch(0.14 0 0)"/>
+      <rect x="0" y="34" width="820" height="14" fill="oklch(0.14 0 0)"/>
+      <circle cx="27" cy="24" r="6" fill="oklch(0.68 0.20 356.8)"/>
+      <circle cx="49" cy="24" r="6" fill="oklch(0.88 0.19 130)"/>
+      <text x="78" y="30" fill="oklch(0.72 0 0)" font-family="Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="1.3">FINAL / SYNTHETIC-DEMO.PPTX</text>
+
+      <text x="38" y="102" fill="oklch(0.20 0 0)" font-family="Arial, sans-serif" font-size="14" font-weight="800" letter-spacing="2">14 · DELIVERY</text>
+      <text x="38" y="150" fill="oklch(0.12 0 0)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="34" font-weight="900">验收的对象，是最后那份 PPTX</text>
+      <text x="38" y="184" fill="oklch(0.46 0 0)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="17" font-weight="600">文字、字体、背景、媒体关系与页面路线同时检查</text>
+
+      <g transform="translate(38 224)">
+        <rect width="420" height="134" rx="8" fill="oklch(0.91 0 0)"/>
+        <text x="20" y="30" fill="oklch(0.40 0 0)" font-family="Arial, sans-serif" font-size="12" font-weight="800" letter-spacing="1.2">ROUTE INTEGRITY</text>
+        <path d="M22 102 L86 75 L144 88 L214 44 L280 63 L352 28 L398 40" fill="none" stroke="oklch(0.68 0.20 356.8)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M22 112H398" stroke="oklch(0.72 0 0)" stroke-width="1"/>
+      </g>
+
+      <g transform="translate(484 224)" font-family="Arial, 'Noto Sans SC', sans-serif">
+        <rect width="298" height="134" rx="8" fill="oklch(0.14 0 0)"/>
+        <circle cx="38" cy="40" r="15" fill="oklch(0.88 0.19 130)"/>
+        <path d="M31 40l5 5 10-12" fill="none" stroke="oklch(0.12 0 0)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="66" y="46" fill="oklch(0.97 0 0)" font-size="18" font-weight="900">PPTX VERIFIED</text>
+        <text x="24" y="84" fill="oklch(0.69 0 0)" font-size="14" font-weight="600">Content · Font · Media · Route</text>
+        <text x="24" y="111" fill="oklch(0.88 0.19 130)" font-size="14" font-weight="800">94 regression checks passed</text>
+      </g>
+
+      <text x="38" y="401" fill="oklch(0.50 0 0)" font-family="Arial, sans-serif" font-size="12" font-weight="800" letter-spacing="1.4">PUBLIC DEMO / FICTIONAL CONTENT / 16:9</text>
+      <text x="750" y="401" fill="oklch(0.20 0 0)" font-family="Arial, sans-serif" font-size="22" font-weight="900">14</text>
+    </g>
+  </g>
+
+  <!-- proof registration marks -->
+  <g stroke="oklch(0.68 0.20 356.8)" stroke-width="2" opacity="0.85">
+    <path d="M24 32h28M38 18v28"/>
+    <path d="M1916 32h28M1930 18v28"/>
+    <path d="M24 728h28M38 714v28"/>
+    <path d="M1916 728h28M1930 714v28"/>
+  </g>
+</svg>
