@@ -1,0 +1,11 @@
+.pytest_cache/
+__pycache__/
+*.py[cod]
+.DS_Store
+.venv/
+*.egg-info/
+.env
+.env.*
+
+# Local project evidence may contain client names, paths, or private materials.
+cases/

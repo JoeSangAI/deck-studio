@@ -1,0 +1,6 @@
+interface:
+  display_name: "PPT 工作台"
+  short_description: "统一制作、精修与验证可编辑、纯图或混合 PPT"
+  default_prompt: "Use $deck-studio to create or improve this PPT and choose the right editable, image, or hybrid route."
+policy:
+  allow_implicit_invocation: true
