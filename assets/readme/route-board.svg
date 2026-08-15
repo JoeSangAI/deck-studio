@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1968" height="760" viewBox="0 0 1968 760" role="img" aria-labelledby="title desc">
+  <title id="title">Deck Studio 四种逐页生产路线</title>
+  <desc id="desc">完全虚构的四张页面示意图，分别展示可编辑、纯图、混合和旧稿精修路线。</desc>
+  <defs>
+    <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="oklch(0.08 0 0)" flood-opacity="0.16"/>
+    </filter>
+    <pattern id="paperGrid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="oklch(0.89 0 0)" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="1968" height="760" fill="oklch(1 0 0)"/>
+  <rect width="1968" height="760" fill="url(#paperGrid)" opacity="0.6"/>
+  <rect x="0" y="0" width="20" height="760" fill="oklch(0.68 0.20 356.8)"/>
+
+  <text x="64" y="71" fill="oklch(0.68 0.20 356.8)" font-family="Arial, sans-serif" font-size="16" font-weight="900" letter-spacing="3.2">PER-SLIDE ROUTING · SYNTHETIC DEMO</text>
+  <text x="64" y="132" fill="oklch(0.12 0 0)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="49" font-weight="900">每一页，都有一条更合适的生产路线</text>
+  <text x="64" y="174" fill="oklch(0.46 0 0)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="21" font-weight="600">按页面任务选择实现方式，整册仍然保持同一套视觉与叙事。</text>
+  <text x="1804" y="120" fill="oklch(0.12 0 0)" font-family="Arial, sans-serif" font-size="44" font-weight="900">04</text>
+  <text x="1804" y="146" fill="oklch(0.50 0 0)" font-family="Arial, sans-serif" font-size="12" font-weight="800" letter-spacing="1.5">ROUTES</text>
+
+  <!-- editable -->
+  <g transform="translate(64 226)" filter="url(#cardShadow)">
+    <rect width="420" height="430" rx="12" fill="oklch(0.96 0 0)" stroke="oklch(0.80 0 0)"/>
+    <rect width="420" height="55" rx="12" fill="oklch(0.12 0 0)"/>
+    <rect y="43" width="420" height="12" fill="oklch(0.12 0 0)"/>
+    <text x="22" y="35" fill="oklch(0.97 0 0)" font-family="Arial, sans-serif" font-size="13" font-weight="900" letter-spacing="1.6">01 · EDITABLE</text>
+    <text x="24" y="103" fill="oklch(0.12 0 0)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="27" font-weight="900">数据与结论保持可编辑</text>
+    <text x="24" y="132" fill="oklch(0.48 0 0)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="14" font-weight="600">适合图表、表格与持续修改</text>
+    <g transform="translate(24 168)">
+      <path d="M0 166H370M0 112H370M0 58H370" stroke="oklch(0.83 0 0)"/>
+      <rect x="20" y="106" width="42" height="60" rx="4" fill="oklch(0.68 0.20 356.8)"/>
+      <rect x="82" y="76" width="42" height="90" rx="4" fill="oklch(0.66 0.17 255)"/>
+      <rect x="144" y="44" width="42" height="122" rx="4" fill="oklch(0.68 0.20 356.8)"/>
+      <rect x="206" y="18" width="42" height="148" rx="4" fill="oklch(0.88 0.19 130)"/>
+      <rect x="268" y="64" width="42" height="102" rx="4" fill="oklch(0.66 0.17 255)"/>
+      <rect x="330" y="33" width="42" height="133" rx="4" fill="oklch(0.12 0 0)"/>
+    </g>
+    <rect x="24" y="380" width="146" height="28" rx="14" fill="oklch(0.68 0.20 356.8)"/>
+    <text x="42" y="399" fill="oklch(0.98 0 0)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="12" font-weight="900">原生文本与图表</text>
+  </g>
+
+  <!-- image -->
+  <g transform="translate(538 226)" filter="url(#cardShadow)">
+    <rect width="420" height="430" rx="12" fill="oklch(0.12 0 0)" stroke="oklch(0.24 0 0)"/>
+    <text x="22" y="35" fill="oklch(0.69 0 0)" font-family="Arial, sans-serif" font-size="13" font-weight="900" letter-spacing="1.6">02 · FULL IMAGE</text>
+    <circle cx="305" cy="183" r="116" fill="oklch(0.68 0.20 356.8)"/>
+    <circle cx="332" cy="154" r="68" fill="oklch(0.88 0.19 130)" opacity="0.92"/>
+    <rect x="214" y="115" width="28" height="202" fill="oklch(0.97 0 0)"/>
+    <rect x="254" y="93" width="15" height="246" fill="oklch(0.97 0 0)" opacity="0.72"/>
+    <text x="24" y="103" fill="oklch(0.97 0 0)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="27" font-weight="900">关键页面冻结为整页视觉</text>
+    <text x="24" y="132" fill="oklch(0.69 0 0)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="14" font-weight="600">适合封面、章节与强情绪页面</text>
+    <text x="24" y="344" fill="oklch(0.97 0 0)" font-family="Arial, sans-serif" font-size="43" font-weight="900">SIGNAL</text>
+    <text x="24" y="371" fill="oklch(0.69 0 0)" font-family="Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="2.2">FICTIONAL KEY VISUAL</text>
+    <rect x="24" y="389" width="118" height="24" rx="12" fill="oklch(0.97 0 0)"/>
+    <text x="41" y="406" fill="oklch(0.12 0 0)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="11" font-weight="900">文案冻结后生产</text>
+  </g>
+
+  <!-- hybrid -->
+  <g transform="translate(1012 226)" filter="url(#cardShadow)">
+    <rect width="420" height="430" rx="12" fill="oklch(0.94 0 0)" stroke="oklch(0.80 0 0)"/>
+    <rect x="0" y="0" width="166" height="430" rx="12" fill="oklch(0.66 0.17 255)"/>
+    <rect x="152" y="0" width="14" height="430" fill="oklch(0.66 0.17 255)"/>
+    <text x="22" y="35" fill="oklch(0.97 0 0)" font-family="Arial, sans-serif" font-size="13" font-weight="900" letter-spacing="1.6">03 · HYBRID</text>
+    <g transform="translate(28 95)" opacity="0.94">
+      <circle cx="54" cy="46" r="45" fill="oklch(0.88 0.19 130)"/>
+      <path d="M14 180L54 78l42 102z" fill="oklch(0.97 0 0)"/>
+      <rect x="0" y="190" width="112" height="112" fill="oklch(0.12 0 0)"/>
+      <path d="M8 286l44-66 24 30 28-40v76z" fill="oklch(0.68 0.20 356.8)"/>
+    </g>
+    <text x="194" y="104" fill="oklch(0.12 0 0)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="27" font-weight="900">视觉与正文分工</text>
+    <text x="194" y="135" fill="oklch(0.48 0 0)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="14" font-weight="600">关键视觉整图</text>
+    <text x="194" y="157" fill="oklch(0.48 0 0)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="14" font-weight="600">标题与数据可继续修改</text>
+    <rect x="194" y="205" width="190" height="10" rx="5" fill="oklch(0.12 0 0)"/>
+    <rect x="194" y="234" width="146" height="10" rx="5" fill="oklch(0.68 0.20 356.8)"/>
+    <rect x="194" y="263" width="170" height="10" rx="5" fill="oklch(0.12 0 0)" opacity="0.35"/>
+    <rect x="194" y="292" width="122" height="10" rx="5" fill="oklch(0.12 0 0)" opacity="0.22"/>
+    <rect x="194" y="380" width="151" height="28" rx="14" fill="oklch(0.66 0.17 255)"/>
+    <text x="213" y="399" fill="oklch(0.98 0 0)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="12" font-weight="900">提案与品牌方案</text>
+  </g>
+
+  <!-- refine -->
+  <g transform="translate(1486 226)" filter="url(#cardShadow)">
+    <rect width="418" height="430" rx="12" fill="oklch(0.16 0 0)" stroke="oklch(0.28 0 0)"/>
+    <text x="22" y="35" fill="oklch(0.69 0 0)" font-family="Arial, sans-serif" font-size="13" font-weight="900" letter-spacing="1.6">04 · REFINE</text>
+    <text x="22" y="91" fill="oklch(0.97 0 0)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="27" font-weight="900">已有稿，保留关系再精修</text>
+    <text x="22" y="120" fill="oklch(0.69 0 0)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="14" font-weight="600">统一字体、背景、边距与兼容性</text>
+    <g transform="translate(22 158)">
+      <text x="0" y="0" fill="oklch(0.52 0 0)" font-family="Arial, sans-serif" font-size="11" font-weight="900" letter-spacing="1.5">BEFORE</text>
+      <rect x="0" y="16" width="165" height="124" rx="6" fill="oklch(0.89 0 0)"/>
+      <rect x="16" y="31" width="76" height="10" fill="oklch(0.56 0.06 255)"/>
+      <rect x="16" y="50" width="130" height="6" fill="oklch(0.62 0 0)"/>
+      <rect x="17" y="73" width="36" height="48" fill="oklch(0.63 0.12 30)"/>
+      <rect x="63" y="60" width="36" height="61" fill="oklch(0.58 0.08 255)"/>
+      <rect x="109" y="86" width="36" height="35" fill="oklch(0.66 0.10 140)"/>
+      <path d="M181 78h30" stroke="oklch(0.68 0.20 356.8)" stroke-width="4"/>
+      <path d="M203 68l10 10-10 10" fill="none" stroke="oklch(0.68 0.20 356.8)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="226" y="0" fill="oklch(0.88 0.19 130)" font-family="Arial, sans-serif" font-size="11" font-weight="900" letter-spacing="1.5">AFTER</text>
+      <rect x="226" y="16" width="165" height="124" rx="6" fill="oklch(0.97 0 0)"/>
+      <rect x="242" y="31" width="100" height="10" fill="oklch(0.12 0 0)"/>
+      <rect x="242" y="50" width="130" height="5" fill="oklch(0.72 0 0)"/>
+      <rect x="242" y="98" width="36" height="23" fill="oklch(0.68 0.20 356.8)"/>
+      <rect x="288" y="74" width="36" height="47" fill="oklch(0.68 0.20 356.8)"/>
+      <rect x="334" y="59" width="36" height="62" fill="oklch(0.88 0.19 130)"/>
+    </g>
+    <g transform="translate(22 340)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="12" font-weight="900">
+      <circle cx="10" cy="10" r="10" fill="oklch(0.88 0.19 130)"/>
+      <path d="M5 10l4 4 7-9" fill="none" stroke="oklch(0.12 0 0)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="30" y="15" fill="oklch(0.97 0 0)">内容关系保留</text>
+      <circle cx="10" cy="48" r="10" fill="oklch(0.88 0.19 130)"/>
+      <path d="M5 48l4 4 7-9" fill="none" stroke="oklch(0.12 0 0)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="30" y="53" fill="oklch(0.97 0 0)">版式与兼容修复</text>
+    </g>
+  </g>
+
+  <text x="64" y="713" fill="oklch(0.52 0 0)" font-family="Arial, 'Noto Sans SC', sans-serif" font-size="15" font-weight="700">示例品牌、页面与数据均为完全虚构，仅用于说明生产路线。</text>
+  <path d="M64 685H1904" stroke="oklch(0.84 0 0)"/>
+</svg>
