@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""Generate full-bleed deck slides from a validated runtime manifest.
+"""Generate or copy image-integrated slides from a validated runtime manifest.
 
-deck.json is derived from the approved outline and page plan. It is the runtime
+deck.json is derived from the outline plus PPT God project snapshot. It is the runtime
 manifest, not a second text source:
 {
   "outdir": "png",                  # relative to deck.json (absolute also works)
@@ -15,16 +15,12 @@ manifest, not a second text source:
     {
       "id": "M01",
       "prompt": "...",
-      "production_route": "reference-fusion",
+      "production_type": "image_integrated",
       "specialist_route": "focusmedia-image-gen",
-      "specialist_asset_scope": "full-slide",
-      "reference_assets": [
-        {"id": "fm-lcd-001", "path": "/abs/ref.jpg", "sha256": "...", "role": "environment-geometry", "media_type": "lcd"},
-        {"id": "fm-standard-lcd-32", "path": "/abs/lcd-32-standard.png", "sha256": "...", "role": "verified-standard-frame", "media_type": "lcd", "hardware_standard": "lcd-32"}
+      "image_path": "/abs/final.png",
+      "assets": [
+        {"id": "fm-lcd-001", "file_path": "/abs/ref.jpg", "role": "reference", "fidelity": "exact"}
       ],
-      "framed_asset": {"id": "fm-lcd-framed-001", "path": "/abs/framed.png", "sha256": "...", "media_type": "lcd", "hardware_standard": "lcd-32"},
-      "specialist_asset": "assets/focusmedia-lcd.png",
-      "specialist_asset_sha256": "...",
       "media_contract": {"medium": "LCD", "...": "..."}
     }
   ]
@@ -32,10 +28,10 @@ manifest, not a second text source:
 
 photo present -> POST /images/edits (preserves that person's likeness)
 photo absent  -> POST /images/generations
-Focus Media pages must use reference fusion with hash-bound real references and a
-hash-bound framed_asset plus a final full-slide specialist_asset produced by
-focusmedia-image-gen. The specialist slide is copied byte-for-byte and never sent to
-generic image generation. Final output validation is a separate gate before assembly.
+Focus Media image-integrated pages use page-bound references and the final ``image_path``
+from focusmedia-image-gen. The specialist slide is copied byte-for-byte
+and never sent to generic image generation. Hybrid and native-editable pages are assembled
+by PPT God, not this image-only helper.
 
 Usage:
   python gen_deck.py deck.json                 # all missing pages (cached skipped)
@@ -106,19 +102,89 @@ def _png_dimensions(path):
     return struct.unpack(">II", header[16:24])
 
 
+def _resolve_snapshot_render_asset(slide):
+    render = slide.get("render_asset") or slide.get("output_asset")
+    if isinstance(render, dict):
+        return render
+    assets = [item for item in slide.get("assets") or [] if isinstance(item, dict)]
+    if isinstance(render, str) and render:
+        for item in assets:
+            if item.get("id") == render:
+                return item
+    matches = [
+        item for item in assets
+        if item.get("usage") == "specialist_output"
+        or item.get("role") == "specialist_output"
+    ]
+    if len(matches) == 1:
+        return matches[0]
+    image_path = str(slide.get("image_path") or "").strip()
+    return {"file_path": image_path} if image_path else None
+
+
+def _prepare_snapshot_image_asset(slide, base_dir, expected_size, *, required=False):
+    sid = slide.get("id", "<unknown>")
+    render = _resolve_snapshot_render_asset(slide)
+    if not isinstance(render, dict):
+        if required:
+            sys.exit("%s requires a final image_path; generic generation is blocked" % sid)
+        return False
+    asset = str(render.get("file_path") or render.get("path") or "").strip()
+    expected_hash = str(render.get("sha256") or "").strip().lower()
+    if not asset:
+        sys.exit("%s image_integrated specialist page requires image_path" % sid)
+    asset_path = asset if os.path.isabs(asset) else os.path.join(base_dir, asset)
+    if not os.path.isfile(asset_path):
+        sys.exit("%s render_asset not found: %s" % (sid, asset))
+    if expected_hash and (len(expected_hash) != 64 or _sha256(asset_path) != expected_hash):
+        sys.exit("%s render_asset sha256 does not match file" % sid)
+    dimensions = _png_dimensions(asset_path)
+    if dimensions != expected_size:
+        actual = "not a PNG" if dimensions is None else "%sx%s" % dimensions
+        sys.exit(
+            "%s render_asset %s does not match deck size %sx%s"
+            % (sid, actual, expected_size[0], expected_size[1])
+        )
+    slide["prebuilt_slide_asset"] = asset_path
+    return True
+
+
+def _validate_snapshot_specialist_slide(slide, base_dir, expected_size):
+    sid = slide.get("id", "<unknown>")
+    production_type = slide.get("production_type")
+    if production_type != "image_integrated":
+        sys.exit(
+            "%s uses %s; gen_deck handles image_integrated pages only and PPT God "
+            "must assemble hybrid/native_editable pages" % (sid, production_type)
+        )
+    if not isinstance(slide.get("media_contract"), dict):
+        sys.exit("%s requires a media_contract object" % sid)
+    _prepare_snapshot_image_asset(slide, base_dir, expected_size, required=True)
+
+
 def _validate_specialist_routes(slides, base_dir, expected_size):
     for slide in slides:
         sid = slide.get("id", "<unknown>")
         route = slide.get("specialist_route")
+        production_type = slide.get("production_type")
         if _focusmedia_visual_required(slide) and route != FOCUSMEDIA_ROUTE:
             sys.exit(
                 "%s is a Focus Media visual but does not use specialist_route %s"
                 % (sid, FOCUSMEDIA_ROUTE)
             )
+        if production_type == "image_integrated":
+            _prepare_snapshot_image_asset(slide, base_dir, expected_size)
+        elif production_type in {"hybrid", "native_editable"}:
+            slide["external_assembly"] = True
         if route in (None, ""):
             continue
         if route != FOCUSMEDIA_ROUTE:
             sys.exit("%s has unsupported specialist_route: %s" % (sid, route))
+        if production_type:
+            if production_type in {"hybrid", "native_editable"}:
+                continue
+            _validate_snapshot_specialist_slide(slide, base_dir, expected_size)
+            continue
         asset_scope = slide.get("specialist_asset_scope")
         if asset_scope not in FOCUSMEDIA_ASSET_SCOPES:
             sys.exit(
@@ -369,6 +435,23 @@ def main():
         if unknown:
             sys.exit("unknown ids: %s" % ", ".join(sorted(unknown)))
         slides = [s for s in slides if s["id"] in wanted]
+
+    external = [s for s in slides if s.get("external_assembly")]
+    if external and args.only:
+        sys.exit(
+            "selected slides are assembled by PPT God, not gen_deck: %s"
+            % ", ".join(slide["id"] for slide in external)
+        )
+    if external:
+        print(
+            "skipping %d hybrid/native_editable slides for PPT God assembly"
+            % len(external),
+            flush=True,
+        )
+        slides = [s for s in slides if not s.get("external_assembly")]
+    if not slides:
+        print("no image_integrated slides selected; PPT God owns assembly", flush=True)
+        return
 
     for slide in slides:
         if slide.get("photo") and not os.path.exists(os.path.join(base_dir, slide["photo"])):

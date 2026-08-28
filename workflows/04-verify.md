@@ -48,7 +48,10 @@ contact sheet 是逐页视觉总览，不等于跳过页面；自动检查负责
 ```bash
 python3 templates/verify_pptx.py source.pptx output.pptx
 # 仅用于多页、跨页型或批量任务
-python3 templates/verify_page_families.py page_families.json
+python3 templates/verify_page_plan.py project_snapshot.json
+python3 templates/verify_page_families.py project_snapshot.json
+python3 templates/verify_route_integrity.py output.pptx project_snapshot.json
+python3 templates/verify_workflow_ready.py project_snapshot.json final_preflight.json
 python3 templates/typography_audit.py output.pptx
 python3 templates/typography_audit.py output.pptx \
   --include-slides <新增或重做页> \
@@ -68,6 +71,9 @@ python3 templates/verify_focusmedia_output.py deck.json
 - 字体家族、继承字体与字号阶梯符合本次设计系统
 - 多页、跨页型或批量任务中，本轮所有改动页均且仅属于一个已定义页型家族
 - 分众媒体页的最终图片、参考 ID/checksum、媒体契约和六项 Output Check 与验收报告一致
+- `image_integrated` 页只有一张全页位图及获准小覆盖物，`hybrid` 页保留关键原生对象，
+  `native_editable` 页未被栅格化
+- 四个 Gate 已批准、阻断问题已关闭并复验、正式预检 revision 与项目 revision 一致
 
 ### 4.3 找差异
 对比"原始 PPT"和"修改后 PPT"的截图：

@@ -6,6 +6,7 @@ Checks:
 - slide count equality
 - visible text preservation by slide
 - picture count regression by slide
+- optional exact preservation of embedded audio/video by slide
 - risky media resources such as SVG/bin packaged images
 - optional display-ratio drift warnings for pictures
 """
@@ -13,8 +14,11 @@ Checks:
 from __future__ import annotations
 
 import argparse
+import hashlib
+import posixpath
 import re
 import sys
+from collections import Counter
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
@@ -32,6 +36,11 @@ NS = {
     "p": "http://schemas.openxmlformats.org/presentationml/2006/main",
     "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
     "rel": "http://schemas.openxmlformats.org/package/2006/relationships",
+}
+
+AV_SUFFIXES = {
+    ".aac", ".avi", ".m4a", ".m4v", ".mov", ".mp3", ".mp4", ".mpeg",
+    ".mpg", ".ogg", ".wav", ".webm", ".wma", ".wmv",
 }
 
 
@@ -98,6 +107,51 @@ def risky_media(path: Path) -> list[str]:
     return risks
 
 
+def embedded_av_bindings(path: Path) -> dict[int, Counter[tuple[str, str]]]:
+    """Return per-slide embedded AV fingerprints, deduplicated by package target.
+
+    PowerPoint commonly writes both a ``video`` relationship and a Microsoft
+    ``media`` relationship to the same MP4. They describe one embedded asset,
+    so the target is counted once per slide before its bytes are fingerprinted.
+    External links are intentionally excluded because this gate verifies
+    embedded package preservation.
+    """
+    result: dict[int, Counter[tuple[str, str]]] = {}
+    with ZipFile(path) as z:
+        names = set(z.namelist())
+        for slide_name in slide_names(z):
+            rel_name = slide_name.replace("ppt/slides/", "ppt/slides/_rels/") + ".rels"
+            bindings: Counter[tuple[str, str]] = Counter()
+            seen_targets: set[str] = set()
+            if rel_name in names:
+                root = ET.fromstring(z.read(rel_name))
+                for rel in root.findall(".//rel:Relationship", NS):
+                    if rel.attrib.get("TargetMode", "").lower() == "external":
+                        continue
+                    target = rel.attrib.get("Target", "")
+                    rel_type = rel.attrib.get("Type", "").rstrip("/").split("/")[-1].lower()
+                    if not target:
+                        continue
+                    if target.startswith("/"):
+                        package_target = posixpath.normpath(target.lstrip("/"))
+                    else:
+                        package_target = posixpath.normpath(
+                            posixpath.join(posixpath.dirname(slide_name), target)
+                        )
+                    suffix = Path(package_target).suffix.lower()
+                    is_av = suffix in AV_SUFFIXES or rel_type in {"audio", "sound", "video"}
+                    is_media_rel = rel_type == "media" and package_target.startswith("ppt/media/")
+                    if not (is_av or is_media_rel) or package_target not in names:
+                        continue
+                    if package_target in seen_targets:
+                        continue
+                    seen_targets.add(package_target)
+                    digest = hashlib.sha256(z.read(package_target)).hexdigest()
+                    bindings[(suffix or rel_type, digest)] += 1
+            result[slide_number(slide_name)] = bindings
+    return result
+
+
 def rels_for_slide(z: ZipFile, slide_xml_name: str) -> dict[str, str]:
     rel_name = slide_xml_name.replace("ppt/slides/", "ppt/slides/_rels/") + ".rels"
     if rel_name not in z.namelist():
@@ -148,7 +202,13 @@ def ratio_warnings(path: Path, threshold: float) -> list[str]:
     return warnings
 
 
-def verify(source: Path, output: Path, ignore_patterns: list[re.Pattern[str]], fail_risky_media: bool) -> list[Issue]:
+def verify(
+    source: Path,
+    output: Path,
+    ignore_patterns: list[re.Pattern[str]],
+    fail_risky_media: bool,
+    require_media_preserved: bool = False,
+) -> list[Issue]:
     issues: list[Issue] = []
     source_texts = extract_slide_texts(source, ignore_patterns)
     output_texts = extract_slide_texts(output, ignore_patterns)
@@ -169,6 +229,20 @@ def verify(source: Path, output: Path, ignore_patterns: list[re.Pattern[str]], f
         if new_count < count:
             issues.append(Issue("warning", f"slide {index}: picture count decreased {count} -> {new_count}"))
 
+    if require_media_preserved:
+        source_av = embedded_av_bindings(source)
+        output_av = embedded_av_bindings(output)
+        for index in sorted(set(source_av) | set(output_av)):
+            before = source_av.get(index, Counter())
+            after = output_av.get(index, Counter())
+            if before != after:
+                issues.append(
+                    Issue(
+                        "error",
+                        f"slide {index}: embedded audio/video changed {sum(before.values())} -> {sum(after.values())}",
+                    )
+                )
+
     risks = risky_media(output)
     for item in risks:
         issues.append(Issue("error" if fail_risky_media else "warning", f"risky media resource: {item}"))
@@ -185,10 +259,21 @@ def main() -> int:
     parser.add_argument("output", type=Path, help="Polished output PPTX")
     parser.add_argument("--ignore-pattern", action="append", default=[], help="Regex for source text to ignore")
     parser.add_argument("--fail-risky-media", action="store_true", help="Treat SVG/bin media as errors")
+    parser.add_argument(
+        "--require-media-preserved",
+        action="store_true",
+        help="Fail if any slide's embedded audio/video bindings or bytes changed",
+    )
     args = parser.parse_args()
 
     patterns = [re.compile(p) for p in args.ignore_pattern]
-    issues = verify(args.source, args.output, patterns, args.fail_risky_media)
+    issues = verify(
+        args.source,
+        args.output,
+        patterns,
+        args.fail_risky_media,
+        args.require_media_preserved,
+    )
 
     errors = [i for i in issues if i.level == "error"]
     warnings = [i for i in issues if i.level == "warning"]

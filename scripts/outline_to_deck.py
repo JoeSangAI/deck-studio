@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
-"""Derive deck.json from the approved outline and page plan.
+"""Derive a runtime deck manifest from an outline and PPT God project snapshot.
 
 Each <section class="page" data-id data-layout ...> becomes one deck slide whose
-gpt-image-2 prompt = [STYLE block built from #deck-config] + [layout formula filled
-with the section's Chinese phrases]. Text lives ONLY in the HTML; deck.json is derived
-and must never be hand-edited — re-run this after editing the outline.
+image prompt = [STYLE block built from #deck-config] + [layout formula filled with
+audience copy from the PPT God snapshot]. HTML supplies visual layout only when a
+snapshot is present. deck.json is derived and must never be hand-edited.
 
 Usage:
   python outline_to_deck.py outline.html                 # -> deck.json next to it
   python outline_to_deck.py outline.html --out deck.json
-  python outline_to_deck.py outline.html --page-plan page-plan.json
+  python outline_to_deck.py outline.html --project-snapshot project_snapshot.json
 
 Requires: beautifulsoup4  (uv pip install beautifulsoup4)
 The executable formulas in this module are authoritative. The prompt cookbook
@@ -32,7 +32,13 @@ SKILL_ROOT = Path(__file__).resolve().parents[1]
 if str(SKILL_ROOT) not in sys.path:
     sys.path.insert(0, str(SKILL_ROOT))
 
-from templates.verify_page_plan import validate_page_plan
+from templates.project_snapshot_contract import (
+    is_project_snapshot,
+    load_json_source,
+    snapshot_slide_family,
+    snapshot_assets,
+    validate_content_gate,
+)
 
 NUM = {1: "One", 2: "Two", 3: "Three", 4: "Four", 5: "Five", 6: "Six"}
 LOCK = ("Keep text MEDIUM-sized and medium-weight, elegant and readable, "
@@ -202,7 +208,35 @@ def text_of(node, selector):
     return el.get_text(" ", strip=True) if el else ""
 
 
-def parse_outline(html_path, page_plan=None):
+def _public_from_snapshot(slide):
+    """Return audience copy from a snapshot slide without inventing a sidecar schema."""
+    public = slide.get("public")
+    if not isinstance(public, dict):
+        public = slide.get("content")
+    if not isinstance(public, dict):
+        public = slide.get("content_json")
+    if not isinstance(public, dict):
+        public = slide
+    if isinstance(public.get("text_content"), dict):
+        public = public["text_content"]
+    title = str(public.get("title") or public.get("headline") or "").strip()
+    if not title:
+        sys.exit("project snapshot slide %s has no audience title" % slide.get("page_num"))
+    body = public.get("body")
+    if body is None:
+        body = public.get("copy") or []
+    if isinstance(body, str):
+        body = [body]
+    return {
+        "kicker": str(public.get("kicker") or "").strip(),
+        "title": title,
+        "claim": str(public.get("claim") or public.get("subtitle") or "").strip(),
+        "body": [str(item).strip() for item in body if str(item).strip()],
+        "source_line": str(public.get("source_line") or "").strip(),
+    }
+
+
+def parse_outline(html_path, project_snapshot=None):
     soup = BeautifulSoup(open(html_path, encoding="utf-8").read(), "html.parser")
     cfg_tag = soup.select_one("#deck-config")
     cfg = json.loads(cfg_tag.get_text()) if cfg_tag else {}
@@ -218,13 +252,25 @@ def parse_outline(html_path, page_plan=None):
     sections = soup.select("section.page")
     if not sections:
         sys.exit("no <section class=\"page\"> found in " + html_path)
-    plan_slides = []
-    if page_plan is not None:
-        plan_slides = page_plan.get("slides") or []
-        if len(plan_slides) != len(sections):
+    snapshot_slides = []
+    legacy_slides = []
+    if project_snapshot is not None:
+        if is_project_snapshot(project_snapshot):
+            snapshot_slides = sorted(
+                project_snapshot.get("slides") or [], key=lambda item: item["page_num"]
+            )
+        else:
+            # Read-only compatibility for existing Python callers and archived
+            # regression fixtures. The CLI never accepts this legacy sidecar.
+            legacy_slides = sorted(
+                project_snapshot.get("slides") or [],
+                key=lambda item: item.get("slide", item.get("page_num", 0)),
+            )
+        state_slides = snapshot_slides or legacy_slides
+        if len(state_slides) != len(sections):
             sys.exit(
-                "page plan has %d slides but outline has %d sections"
-                % (len(plan_slides), len(sections))
+                "project state has %d slides but outline has %d sections"
+                % (len(state_slides), len(sections))
             )
 
     for i, sec in enumerate(sections):
@@ -239,18 +285,16 @@ def parse_outline(html_path, page_plan=None):
         items = [x.strip() for x in (sec.get("data-sum") or "").split(" / ")
                  if x.strip()]
 
-        # Once a page plan is approved, its public object is the only source of
-        # audience-visible copy. HTML remains a visual/layout description.
-        if plan_slides:
-            public = plan_slides[i]["public"]
-            kicker = str(public.get("kicker") or "").strip()
-            title = str(public["title"]).strip()
-            sub = str(public["claim"]).strip()
-            body = public.get("body") or []
-            if isinstance(body, str):
-                body = [body]
-            items = [str(item).strip() for item in body if str(item).strip()]
-            source_line = str(public.get("source_line") or "").strip()
+        # Once a snapshot is supplied, it is the only source of audience copy and
+        # production state. HTML remains a visual/layout description only.
+        state_slides = snapshot_slides or legacy_slides
+        if state_slides:
+            public = _public_from_snapshot(state_slides[i])
+            kicker = public["kicker"]
+            title = public["title"]
+            sub = public["claim"]
+            items = list(public["body"])
+            source_line = public["source_line"]
             if source_line:
                 items.append(source_line)
 
@@ -265,30 +309,47 @@ def parse_outline(html_path, page_plan=None):
         slide = {"id": sid, "prompt": prompt}
         if photo:
             slide["photo"] = photo
-        if plan_slides:
-            plan_slide = plan_slides[i]
-            slide["mode"] = plan_slide["mode"]
+        if state_slides:
+            snapshot_slide = state_slides[i]
             for field in (
+                "page_num",
+                "production_type",
+                "visual_role",
+                "type",
+                "evidence_state",
+                "source_ref",
+                "image_path",
+                "layout_spec",
+                "visual_json",
+                "prompt_text",
+                "knowledge_route",
+                "knowledge_contract",
+                "specialist_route",
+                "media_contract",
+                "media_validation_report",
+                # Legacy audit-only fields retained for in-process callers.
+                "mode",
                 "production_route",
                 "overlay_policy",
                 "overlay_assets",
                 "edit_mask",
                 "source_lock",
                 "reference_assets",
-                "knowledge_route",
-                "knowledge_contract",
-                "specialist_route",
-                "specialist_asset_scope",
-                "media_contract",
-                "framed_asset",
-                "requires_focusmedia_media",
                 "specialist_asset",
-                "specialist_asset_sha256",
-                "media_validation_report",
-                "allow_logo_overlay",
+                "specialist_asset_scope",
+                "framed_asset",
             ):
-                if plan_slide.get(field) not in (None, ""):
-                    slide[field] = plan_slide[field]
+                if snapshot_slide.get(field) not in (None, ""):
+                    slide[field] = snapshot_slide[field]
+            if snapshot_slides:
+                slide["family"] = snapshot_slide_family(project_snapshot, snapshot_slide)
+                slide_id = str(snapshot_slide.get("id") or "")
+                bound_assets = [
+                    asset for asset in snapshot_assets(project_snapshot)
+                    if str(asset.get("slide_id") or "") == slide_id
+                ]
+                if bound_assets:
+                    slide["assets"] = bound_assets
         slides.append(slide)
         ids.append(sid)
 
@@ -311,25 +372,19 @@ def main():
     parser = argparse.ArgumentParser(description="derive deck.json from an outline HTML")
     parser.add_argument("outline", help="path to outline HTML")
     parser.add_argument("--out", help="output deck.json (default: deck.json next to outline)")
-    parser.add_argument("--page-plan", type=Path)
-    parser.add_argument("--route-manifest", type=Path)
+    parser.add_argument(
+        "--project-snapshot",
+        required=True,
+        help="read-only project_snapshot JSON file or URL from PPT God",
+    )
     args = parser.parse_args()
 
-    page_plan = None
-    if args.page_plan:
-        page_plan = json.loads(args.page_plan.read_text(encoding="utf-8"))
-        route_manifest = (
-            json.loads(args.route_manifest.read_text(encoding="utf-8"))
-            if args.route_manifest
-            else None
-        )
-        errors = validate_page_plan(page_plan, route_manifest)
-        if errors:
-            sys.exit("page plan rejected: " + "; ".join(errors))
-    elif args.route_manifest:
-        sys.exit("--route-manifest requires --page-plan")
+    project_snapshot = load_json_source(args.project_snapshot)
+    errors = validate_content_gate(project_snapshot)
+    if errors:
+        sys.exit("project snapshot rejected: " + "; ".join(errors))
 
-    deck = parse_outline(args.outline, page_plan)
+    deck = parse_outline(args.outline, project_snapshot)
     out = args.out or os.path.join(os.path.dirname(os.path.abspath(args.outline)), "deck.json")
     with open(out, "w", encoding="utf-8") as f:
         json.dump(deck, f, ensure_ascii=False, indent=2)

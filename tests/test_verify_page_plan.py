@@ -137,6 +137,57 @@ def test_valid_page_plan_and_matching_route():
     assert validate_page_plan(plan, route) == []
 
 
+def test_exact_assets_require_real_files_and_match_route(tmp_path):
+    plan = valid_plan()
+    asset_path = tmp_path / "approved-product.png"
+    asset_path.write_bytes(b"approved product")
+    exact_asset = {
+        "id": "approved-product",
+        "role": "product",
+        "path": str(asset_path),
+        "sha256": hashlib.sha256(asset_path.read_bytes()).hexdigest(),
+    }
+    plan["slides"][1]["exact_assets"] = [exact_asset]
+    route = {
+        "slides": [
+            {
+                "slide": 1,
+                "mode": "image",
+                "production_route": "ppt-god-full-image",
+                "overlay_policy": "none",
+            },
+            {
+                "slide": 2,
+                "mode": "editable",
+                "production_route": "native-editable",
+                "overlay_policy": "none",
+                "exact_assets": [exact_asset],
+            },
+        ]
+    }
+    assert validate_page_plan(plan, route) == []
+
+    route["slides"][1]["exact_assets"] = []
+    assert "route manifest slide order and production routes must match page plan" in (
+        validate_page_plan(plan, route)
+    )
+
+
+def test_exact_assets_reject_unknown_role_and_bad_hash(tmp_path):
+    plan = valid_plan()
+    asset_path = tmp_path / "client-evidence.png"
+    asset_path.write_bytes(b"client evidence")
+    plan["slides"][1]["exact_assets"] = [{
+        "id": "client-evidence",
+        "role": "generated-decoration",
+        "path": str(asset_path),
+        "sha256": "0" * 64,
+    }]
+    errors = validate_page_plan(plan)
+    assert any("exact_assets[1] role must be one of" in error for error in errors)
+    assert "slide 2 exact_assets[1] sha256 does not match file" in errors
+
+
 def test_unapproved_or_incomplete_plan_is_rejected():
     plan = valid_plan()
     plan["status"] = "draft"

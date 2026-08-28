@@ -1,203 +1,182 @@
-# PPT 生产路由与混合装配
+# PPT God 项目快照与三种页面生产类型
 
-## 目录
+## 1. 唯一状态源
 
-1. 先看最终使用方式
-2. 四种路线
-3. 页面级路由
-4. 混合装配不变量
-5. 并行生产契约
-6. 验收
+PPT God 是制作期唯一状态源。Codex 通过 Workflow Core 更新内容、视觉职责、证据、生产类型、家族、
+问题和审批；Deck Studio 只读取：
 
-## 1. 先看最终使用方式
+```text
+GET /projects/{id}/project-snapshot
+```
 
-不要从“哪个工具方便”开始。先判断：
+不得为新项目手工创建或双写 `page_plan.json`、`route_manifest.json`、`page_families.json`。需要离线验证
+时，把接口原始响应保存为一次性只读 `project_snapshot.json`；它不能反向成为编辑源。所有 mutation 携带
+`expected_revision`；HTTP 409 时读取返回的 `latest_snapshot`，保留用户刚完成的修改后提交最小变化。
 
-- 听众是现场听讲还是会后自行阅读？
-- 后续是否需要频繁改字、换数据、换案例或换品牌？
-- 是否包含视频、音频、图表、表格、二维码或可点击入口？
-- 内容的事实准确性和可追溯性有多高？
-- 视觉冲击和编辑自由哪个更重要？
+## 2. 四个 Gate 与正式接口
 
-页数不是独立目标。以论证完整、现场节奏和阅读负担共同决定；密集页应拆开，但不要为了“控制在
-几页”删除必要证据。
-
-## 2. 四种路线
-
-| 路线 | 优先场景 | 主要风险 | 必守动作 |
-|---|---|---|---|
-| 可编辑 | 客户方案、数据报告、案例库、多媒体、反复修改 | 程序感、版式平 | 先建立 KV 派生的视觉系统，再用原生对象实现 |
-| 纯图 | 演讲、发布、课程大场、视觉气氛优先 | 错字、不可编辑、事实难修 | 文字冻结、样张门、逐页校对 |
-| 混合 | 既要视觉冲击又要可修改的提案 | 合并时风格割裂或全稿栅格化 | 页面级标注路线、统一母版、验证可编辑性 |
-| 精修 | 已有内容成立但观感、结构或兼容性差 | 内容误改、补丁式美化 | 先审计和保真，再修根因 |
-
-### 现场讲述型分享
-
-当听众主要通过讲述者理解内容，页面负责制造节奏、记忆点和视觉证据时，默认从纯图路线开始判断。
-截图、视频、真实照片、数据、原始证据和需要精确编辑的页面转入可编辑路线。这个默认值不规定图片页
-比例；每一张可编辑页都应有来自内容或播放要求的明确理由，不能只因为代码生成更方便。
-
-## 3. 页面级路由
-
-通常适合纯图：
-
-- 封面、封底；
-- 章节页、转场页、金句页；
-- 单一主张或情绪性强、文字很少的关键页；
-- 已冻结且不承载精确数据的品牌氛围页。
-
-通常必须可编辑：
-
-- 数据图表、表格、时间轴和报价；
-- 客户案例、研究证据、复杂文字和频繁更新内容；
-- 视频、音频、二维码、链接和交互入口；
-- Logo、产品 UI、截图、法务文案和事实敏感页面；
-- 需要客户自行修改或复用的正文页。
-
-页面路由由两层组成。`mode` 决定 PPT 中的对象形态，`production_route` 决定基底怎样产生：
-
-| `production_route` | 适用情况 | 必经证据 |
+| Gate | key | 用户确认内容 |
 |---|---|---|
-| `source-preserve` | 复杂原页、案例、证据页、已批准页面 | `source_lock` 绑定唯一母稿绝对路径、checksum、类型和页码 |
-| `native-editable` | 数据、事实、持续修改与多媒体页面 | `mode: editable` 和原生对象验收 |
-| `ppt-god-full-image` | 无精确硬件资产的完整视觉页 | `mode: image`、冻结文案、整页校对 |
-| `reference-fusion` | 含真实媒体、产品、人物或批准页面的完整视觉页 | 非空 `reference_assets`，每项含 ID、绝对路径、checksum 和角色 |
+| 内容与页序 | `content_order` | 逐页内容、顺序、章节和转场 |
+| 视觉证据与页面路线 | `visual_evidence_route` | 视觉职责、证据选择和生产类型 |
+| 页面家族与构造样张 | `family_prototypes` | 家族代表页和已批准生产类型 |
+| 整套终验 | `final_review` | 历史问题复验、结构 QA 和正式导出许可 |
 
-`overlay_policy` 独立取值：
+```text
+GET   /projects/{id}/workflow
+POST  /projects/{id}/workflow/enable
+PATCH /projects/{id}/workflow/slides
+POST  /projects/{id}/workflow/gates/{gate}/{approve|reopen}
+GET   /projects/{id}/workflow/issues
+POST  /projects/{id}/workflow/issues
+PATCH /projects/{id}/workflow/issues/{issue_id}
+GET   /projects/{id}/project-snapshot
+GET   /projects/{id}/exports/final/preflight
+POST  /projects/{id}/exports/draft
+POST  /projects/{id}/exports/final
+POST  /projects/{id}/codex-handoff
+```
 
-- `none`：无后贴层；
-- `logo-only`：只允许一张已确认真实 Logo，并写 `allow_logo_overlay: true`；
-- `precision-assets`：只允许 Logo、二维码、法务标识或截图，逐项写入 `overlay_assets`；
-- `local-patch`：只用于 `source-preserve` 的局部修补，必须带 `edit_mask` 并验证蒙版外不变。
+## 3. 三种生产类型
 
-Overlay 是 PPT 页面装配概念，不负责制作媒体图。屏幕或海报创意先进入标准带框图；媒体进入环境时
-使用专业参考融合。页面中的人物主体和主构图同样不能靠 Overlay 拼成。
+| `production_type` | 页面结构 | 优先场景 | 硬验收 |
+|---|---|---|---|
+| `image_integrated` | 一张完整 16:9 页面图 + 获准小覆盖物 | 视觉冲击、章节、金句、封面、文案冻结页 | 有可用 `image_path`；PPTX 中恰好一个全页图，无原生核心对象 |
+| `hybrid` | 一张完整视觉底图 + 少量原生关键对象 | 视觉完成度高，同时要改标题、数字、视频或图表 | 同时有 `image_path` 与 `layout_spec`；PPTX 有全页底图和原生核心对象 |
+| `native_editable` | 原生文字、图片、图表、表格、流程和媒体 | 实时数据、复杂关系、课堂操作、持续复用 | 有 `layout_spec`；PPTX 有真实原生内容，不能用全页图冒充 |
 
-当前 PPT God CLI 的稳定 Agent 路径提供全页生成和 `import-slide-image`，未提供上传本地参考资产并
-绑定指定页面的命令。因此默认分工是：`ppt-god-full-image` 直接交给 PPT God；`reference-fusion`
-由专业图片能力完成并验收，再原样导入 PPT God。专业成品不再交给通用模型二次重画。若未来 CLI
-正式支持参考资产上传，只有在回读确认页面
-绑定的 reference ID 非空且与 `reference_assets` 一致后，才可把融合环节迁入 PPT God。
+`source_ref` 是跨类型来源属性，不是第四种生产类型。已有优质原生页保持结构并记录母稿来源；批准整页图
+可记录来源后按 `image_integrated` 使用。默认追求视觉质量；关键内容需要修改时优先 `hybrid`；结构本身
+必须编辑时使用 `native_editable`。
 
-### 专业媒体扩展
+## 4. 三种视觉职责
 
-当页面涉及分众知识、历史原页或分众媒体硬件时，完整读取
-[focusmedia-integration.md](focusmedia-integration.md)。该引用统一拥有专业 Skill 分工、知识与原件
-路由、标准带框图、环境参考融合、页面资产契约和验收规则；本文件只保留通用页面路由。
+- `evidence`：页面让听众相信一个事实，必须有用户确认的视觉证据。
+- `expressive`：页面建立情绪、场景、隐喻或概念，不强制事实证据。
+- `text_led`：页面以章节、金句、转场或纯文字为主，不为了填空强塞图片。
 
-## 4. 混合装配不变量
+视觉职责和生产类型正交。同一张证据页可以是一体图、混合页或原生页；类型由最终使用方式决定。
 
-每页只做三项正交决策：
+## 5. 真实 `project_snapshot` 结构
 
-- `mode: editable | image`：PPT 内如何实现；
-- `knowledge_route`：事实、方法或原页从哪里取得；
-- `specialist_route`：专业媒体视觉由哪个 Skill 生产。
-
-后一项不能替代前两项。同一页可以同时使用知识来源、专业媒体视觉和明确的 PPT 实现路线。
-
-路线清单使用：
+正式接口返回顶层 `project`、`workflow` 与完整 `slides`：
 
 ```json
 {
-  "slides": [
-    {
-      "slide": 1,
-      "mode": "image",
-      "production_route": "ppt-god-full-image",
-      "overlay_policy": "logo-only",
-      "allow_logo_overlay": true,
-      "overlay_assets": [{
-        "id": "brand-logo",
-        "path": "/absolute/path/brand-logo.png",
-        "sha256": "<64位文件checksum>",
-        "role": "logo"
-      }]
+  "project": {
+    "id": "project-id",
+    "title": "项目标题",
+    "content_plan_confirmed": true,
+    "selected_style": "...",
+    "intent_contract": {}
+  },
+  "workflow": {
+    "project_id": "project-id",
+    "workflow_version": "1.0",
+    "revision": 12,
+    "enabled": true,
+    "gates": {
+      "content_order": {"status": "approved", "approved_revision": 4, "approved_at": "..."},
+      "visual_evidence_route": {"status": "approved", "approved_revision": 8, "approved_at": "..."},
+      "family_prototypes": {"status": "approved", "approved_revision": 10, "approved_at": "..."},
+      "final_review": {"status": "pending", "approved_revision": null, "approved_at": null}
     },
-    {"slide": 2, "mode": "editable", "production_route": "native-editable", "overlay_policy": "none", "requires": ["text"]},
-    {"slide": 8, "mode": "editable", "production_route": "native-editable", "overlay_policy": "none", "requires": ["chart"]},
-    {"slide": 12, "mode": "editable", "production_route": "native-editable", "overlay_policy": "none", "requires": ["media"]}
-  ]
+    "families": {
+      "content": {
+        "label": "内容",
+        "status": "approved",
+        "representative_slide_id": "slide-id",
+        "approved_production_types": ["image_integrated", "hybrid"]
+      }
+    },
+    "assets": [{
+      "id": "asset-id",
+      "slide_id": "slide-id",
+      "role": "product",
+      "process_mode": "blend",
+      "fidelity": "exact",
+      "source_ref": {},
+      "review_status": "confirmed",
+      "user_locked": true,
+      "file_path": "/absolute/product.png",
+      "exists": true
+    }],
+    "issues": [],
+    "blockers": []
+  },
+  "slides": [{
+    "id": "slide-id",
+    "page_num": 1,
+    "type": "content",
+    "content_json": {},
+    "visual_json": {},
+    "prompt_text": "...",
+    "image_path": "/absolute/page-1.png",
+    "layout_spec": null,
+    "production_type": "image_integrated",
+    "visual_role": "evidence",
+    "evidence_state": {},
+    "source_ref": null
+  }]
 }
 ```
 
-- `editable` 页必须保留原生文本、形状、图表、表格和媒体关系。
-- `image` 页才允许整页铺图；页面文字默认由图片模型在同一次整页生成中完成，逐页校对后只重出
-  错页，不默认再叠加第二套文字层。
-- Logo 不得由模型仿造；整页图需要真实 Logo 时，使用已确认的独立图层后贴。二维码、法务标识和
-  其他必须精确的品牌资产同理。屏幕创意在专业带框阶段完成，不进入这里的 Overlay 清单。
-- 图片页默认没有后贴层；`logo-only` 只允许一张已确认 Logo，`precision-assets` 的实际图片数量必须
-  与清单一致。不得把整台设备、人物或多张构图贴片伪装成纯图页。
-- 不得把可编辑稿导出成图片后再合并，哪怕这样更方便统一风格。
-- 所有路线共用同一尺寸、品牌色、字体层级、Logo 位置、安全区和页码逻辑。
-- 合并后重新验证页序、章节转场、视频点击、外链、字体替换和 PowerPoint 实际打开效果。
-- 合并后运行 `templates/verify_route_integrity.py final.pptx route_manifest.json`。可编辑页被整页图片化、
-  缺少声明的文字/图表/媒体，图片页不是唯一整页图（真实 Logo 小图层除外），或存在未分类页面时
-  都不能交付。专业媒体页面再叠加对应集成引用的资产一致性门槛。
+不要为验证器发明顶层 `gates`、逐页 `assets[]`、第二份家族数组或嵌入式预检结果。正式预检来自独立
+`GET /projects/{id}/exports/final/preflight` 响应。
 
-## 5. 客户提案的逐页叙事门
+## 6. 证据与用户锁
 
-客户提案、汇报和其他叙事责任较高的任务，在批量生产前维护 `page_plan.json`：
+证据型页面执行两轮止损：
 
-```json
-{
-  "status": "approved",
-  "approved_by": "Joe",
-  "content_version": "v1",
-  "approval_scope": "全册逐页叙事与路由",
-  "slides": [
-    {
-      "slide": 1,
-      "public": {
-        "title": "三个问题共同指向一个增长机会",
-        "claim": "核心场景触达能够同时推动品牌认知与消费行动"
-      },
-      "notes": {
-        "audience_question": "这次方案解决什么增长问题？",
-        "purpose": "让客户知道这次沟通要解决什么",
-        "claim_key": "growth-opportunity",
-        "evidence_source": "客户 Brief 第 2 页",
-        "speaker_line": "先看三个问题背后的共同结构。",
-        "transition": "下一页解释共同结构",
-        "excludes": "不在本页展开媒体执行细节"
-      },
-      "mode": "image",
-      "production_route": "ppt-god-full-image",
-      "overlay_policy": "none"
-    }
-  ]
-}
+1. 第一轮查项目材料、用户素材、已归档原件和官方来源。
+2. 第二轮做定向搜索或候选生成。
+3. 无合格结果时写 `status: gap`、两轮 `search_rounds` 和缺口，只暂停该页。
+
+`evidence_state.status` 只取 `unreviewed | candidate | confirmed | gap | waived`。候选最多三项；
+`confirmed` 必须选中 `workflow.assets` 中的实际资产。`waived` 只在用户明确批准无需证据或批准替代处理时
+使用，并保存 `user_decision`。`gap` 不能同时选中素材。
+
+资产 `fidelity` 只取 `exact | reference | generated`。用户明确提供的原件写 `fidelity: exact`；用户确认
+使用的任意候选写 `user_locked: true` 并保持其原有 fidelity，PPT God 拒绝自动替换。系统只检查清晰度、
+比例和技术可用性。可能被误认成真实案例、真实投放或真实结果的生成素材，观众页显示“示意图 / AI 生成”。
+
+## 7. 页面家族与样张
+
+`workflow.families` 是以家族 key 索引的对象。核心 key 为 `cover | section | quote | data | content`；
+稳定重复约三页的特殊形式可使用项目 key。每个实际家族必须有一个 `representative_slide_id`。
+同一家族首次出现某种构造方式时，把它加入 `approved_production_types`；这表示对应样张已经由用户批准，
+不能只改字段绕过样张 Gate。
+
+## 8. 装配不变量
+
+- `image_integrated`：一个全页图片；只允许获准精确小覆盖物，无原生核心正文、图表或形状。
+- `hybrid`：一个全页底图，并保留标题、数字、图表或媒体等已确认的原生核心对象。
+- `native_editable`：保留原生文字、形状、图表、表格、图片和媒体关系；禁止整页截图化。
+- 用户锁定资产不能被相似图、模型重画或旧版本替代。
+- 源稿音视频未获授权替换时，继续使用 `verify_pptx.py` 核对媒体关系和字节。
+
+```bash
+python3 templates/verify_page_plan.py project_snapshot.json
+python3 templates/verify_page_families.py project_snapshot.json
+python3 templates/verify_route_integrity.py final.pptx project_snapshot.json
+python3 templates/verify_workflow_ready.py project_snapshot.json final_preflight.json
 ```
 
-- 每页只有一个主结论；`public` 是所有客户可见文案的唯一来源。
-- `notes.evidence_source` 必须可追溯，不能写成空泛的“综合判断”；`notes.speaker_line` 是这一页现场
-  真正要说的一句话，`notes.transition` 说明为什么下一页自然出现。
-- 封面、目录和章节页也必须说明它们在叙事中的作用；不适用的证据来源写明 `not_applicable`，不得留空。
-- 运行 `templates/verify_page_plan.py page_plan.json`。若同时已有路线清单，再传
-  `--route-manifest route_manifest.json`；页数、页序、`mode`、`production_route`、
-  `overlay_policy`、`knowledge_route` 和 `specialist_route` 必须一致。
-- `status` 不是 `approved`、确认人为空或校验失败时，只允许继续讨论结构和制作代表页样张，不得批量生产整册。
+## 9. 问题、复验与导出
 
-### 分众知识与媒体
+`workflow.issues[]` 保存原始反馈、页码、影响范围、严重度、修正版本和复验结果。严重度为
+`blocking | warning`；状态为 `open | in_progress | resolved_pending_verification | closed`。问题只有在
+`verification_result.passed: true` 且记录 `correction_version` 后才能关闭。
 
-页面涉及分众知识、原件或媒体时，完整读取
-[focusmedia-integration.md](focusmedia-integration.md)，按其中的桥接命令、页面契约、两段式媒体资产链
-和 Output Check 执行。普通客户提案不加载该引用。
+正式导出先查询预检。响应必须满足：`ok: true`、`workflow_revision` 等于快照 `workflow.revision`、
+`ready_count` 等于页面总数且 `blockers` 为空。草稿使用独立接口并明确标识为草稿。
 
-## 6. 并行生产契约
+## 10. 专业路由与旧项目
 
-只有方向、页序、视觉系统、素材归属和交付格式已经锁定时，才适合并行制作。
+`knowledge_route` 和 `specialist_route` 与 `production_type` 正交。分众页面完整读取
+[focusmedia-integration.md](focusmedia-integration.md)，媒体资产遵循标准框体、真实环境、创意锁定和专项
+验收。
 
-- 主 Agent 保持与用户的讨论连续性，负责发现隐性标准和修改总规划。
-- 生产 Agent 领取清楚的页段和素材，不另起一套叙事或视觉体系。
-- 数据、案例核查等独立工作可以提前并行；整册方向未锁定时不批量生产页面。
-- 总控 Agent 对合册结果负责：统一标题层级、去重、补转场、修交互、做整册 QA。
-
-## 7. 验收
-
-除常规视觉检查外，混合稿必须额外确认：
-
-1. 预定可编辑页是否仍可单独修改文字、图表和媒体；
-2. 纯图页是否仅限已选页型；
-3. 视频是否可直接点击或播放，而不是只有截图；
-4. 多来源页面是否形成一套叙事，而不是“完整案例”“此前案例”等拼接痕迹；
-5. 整册是否使用同一品牌系统，例外品牌色只出现在合理的案例语境。
+旧 `mode: image` 只在用户主动启用新 Workflow 时映射为 `image_integrated`；旧 `mode: code` 映射为
+`native_editable`。四个 Gate 从待确认开始。旧四条 `production_route` 与三份人工 JSON 只保留只读审计，
+不得继续双写。

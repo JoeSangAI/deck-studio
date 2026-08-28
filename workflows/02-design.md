@@ -30,48 +30,22 @@ P05 case-image     medium       策略：图片证据为主，统一图框
 
 如果同一 deck 出现多个画像，以用户最终用途为主；无法判断时默认 `general-business`，用稳健商务风格。
 
-### 2.1.2 建立页型家族和改造强度
+### 2.1.2 建立页面家族与构造样张
 
-在代表页制作前，把所有改动页归入以下四种强度之一：
+页面家族固定从 PPT God 的只读 `project_snapshot.workflow.families` 读取；Deck Studio 不另建家族清单。核心家族为
+封面、章节、金句、数据、内容。案例、流程、视频和互动先作为功能标签，只有稳定重复约三页时才升级为
+项目专属家族。
 
-| 强度 | 适用 | 允许改变 |
-|---|---|---|
-| `image-led` | 封面、目录、章节、转场、金句、封底 | 整页构图和视觉母题，保留冻结文案与真实资产 |
-| `native-redesign` | 价值总览、流程、活动体系、场景总览 | 原生重排，但保留事实、文案、图片和逻辑 |
-| `shell-unify` | 政策截图、设备结构、图墙、复杂案例 | 只改外层标题、背景、边距、页码和必要字体 |
-| `preserve` | 本身已清楚或改动收益低的复杂页 | 仅修明确错误 |
-
-为每个家族记录：页码、视觉锚点、标题规则、字体、背景、边距、图片处理、必须保持和验收方式。
-代表页确认只批准其所属家族，不能自动外推到未覆盖页型。
-
-当改动覆盖 3 页以上、涉及 2 个以上页型或准备批量应用规则时，把结果写入
-`page_families.json`，批量执行前运行：
+每个实际使用的家族先确认一张视觉代表页；同一家族首次出现 `hybrid` 或从零 `native_editable` 时，再
+分别确认一张构造样张。代表页确认只批准其所属家族和构造方式，不能外推到未覆盖组合。批量执行前运行：
 
 ```bash
-python3 templates/verify_page_families.py page_families.json
+python3 templates/verify_page_families.py project_snapshot.json
 ```
 
-最低结构：
-
-```json
-{
-  "slide_count": 36,
-  "changed_slides": [2, 6, 10, 11],
-  "families": [{
-    "name": "image-chapters",
-    "mode": "image-led",
-    "slides": [2, 11],
-    "representative": 2,
-    "visual_contract": {
-      "visual_motif": "同一场景摄影母题",
-      "title_system": "同位置无衬线大标题"
-    }
-  }]
-}
-```
-
-`shell-unify` 家族必须额外提供非空的 `must_preserve`，列出不可改变的截图、标签、图片主体和对应关系。
-只改 1–2 页且不批量复用规则时，在设计稿中直接写明页型、视觉契约和保护边界，不额外创建 JSON。
+家族变化由 PPT God 重新打开 `family_prototypes` Gate，并只让该家族页面及最终验收失效。用户锁定的截图、
+Logo、产品、人像、视频和批准页面写入 `project_snapshot.workflow.assets[]`，使用 `fidelity: exact`、
+`user_locked: true` 和对应 `slide_id`，样张不得替换。
 
 ### 2.1.3 承担主动审美诊断
 
@@ -132,10 +106,11 @@ python3 templates/verify_page_families.py page_families.json
 ## 图片驱动封面与章节页
 
 - 先重写标题：封面和章节标题应表达这一部分的核心判断，而不只是“市场分析”“案例参考”等栏目名。
-- 页面不含必须保真的媒体、产品或人物时，标记 `ppt-god-full-image`，把已确认标题、正文和构图要求
-  放入同一次 16:9 整页生成。页面含精确视觉资产时改为 `reference-fusion`，先锁定实际
-  `reference_assets`，再由专业图片 Skill 或支持参考编辑的图片能力完成整页；PPT God 项目使用
-  `import-slide-image` 接回已验收页面。
+- 视觉质量优先且核心文字、画面和构图可一起锁定时使用 `image_integrated`；关键标题、数据、视频或
+  图表需要少量原生编辑时使用 `hybrid`；结构关系或全部内容必须编辑时使用 `native_editable`。
+- 页面含精确视觉资产时，先把实际文件登记进 `project_snapshot.workflow.assets[]`，使用
+  `fidelity: exact`、`user_locked: true`、`file_path` 和 `slide_id`；专业图片 Skill 只处理获准的融合范围，
+  不重画原件。来源带 checksum 时作为 `source_ref` 的附加校验保存。
 - 页面涉及分众知识、原页或媒体时，完整读取 `references/focusmedia-integration.md`，按其中的资产链、
   页面契约和专业验收设计；普通页面不增加分众字段。
 - 同一 deck 的封面与章节页使用一个视觉母题，通过隐喻变化区分章节，不逐页换一套画风。

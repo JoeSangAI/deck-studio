@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
-"""Assemble a full-bleed 16:9 PPTX from deck.json (its slide order + outdir).
+"""Assemble a legacy image-only draft PPTX from deck.json.
 
-Usage: python assemble_pptx.py deck.json --out final.pptx
-Adds a blank slide for any missing/undersized PNG, prints them, exits 1. Focus
-Media slides are rejected before assembly unless their hash-bound Output Check
-report matches the exact current PNG and reference assets.
+Usage: python assemble_pptx.py deck.json --out draft.pptx
+Formal and mixed-type exports belong to PPT God's Workflow Core. This helper
+preflights every image before creating an output; it never inserts blank pages.
+Focus Media slides are rejected unless their Output Check report matches the
+exact current PNG and reference assets.
 """
 import argparse
 import json
@@ -58,28 +59,43 @@ def main():
             print("MEDIA VALIDATION ERROR: " + error)
         sys.exit(1)
 
+    unsupported = [
+        slide_def["id"]
+        for slide_def in cfg["slides"]
+        if slide_def.get("production_type") in {"hybrid", "native_editable"}
+    ]
+    if unsupported:
+        print(
+            "PPT GOD ASSEMBLY REQUIRED: hybrid/native_editable slides: "
+            + ", ".join(unsupported)
+        )
+        sys.exit(1)
+
+    missing = []
+    for slide_def in cfg["slides"]:
+        png = outdir / (slide_def["id"] + ".png")
+        if not png.exists() or png.stat().st_size <= min_bytes:
+            missing.append(slide_def["id"])
+    if missing:
+        print("MISSING: " + ", ".join(missing))
+        sys.exit(1)
+
     prs = Presentation()
     prs.slide_width = Emu(SLIDE_W)
     prs.slide_height = Emu(SLIDE_H)
     blank = prs.slide_layouts[6]
 
-    placed, missing = [], []
+    placed = []
     for slide_def in cfg["slides"]:
         sid = slide_def["id"]
         png = outdir / (sid + ".png")
         slide = prs.slides.add_slide(blank)
-        if png.exists() and png.stat().st_size > min_bytes:
-            slide.shapes.add_picture(str(png), 0, 0, width=prs.slide_width, height=prs.slide_height)
-            placed.append(sid)
-        else:
-            missing.append(sid)
+        slide.shapes.add_picture(str(png), 0, 0, width=prs.slide_width, height=prs.slide_height)
+        placed.append(sid)
 
     prs.save(args.out)
     print("saved: %s  (%.1f MB)" % (args.out, os.path.getsize(args.out) / 1e6))
     print("placed %d / %d" % (len(placed), len(cfg["slides"])))
-    if missing:
-        print("MISSING: " + ", ".join(missing))
-        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Verify that a hybrid PPTX preserves the intended editable/image page routes."""
+"""Verify final PPTX structure against the PPT God project snapshot.
+
+The public CLI reads ``project_snapshot``.  ``validate_routes`` still accepts the
+former route manifest in-process so archived projects remain auditable.
+"""
 
 from __future__ import annotations
 
@@ -13,12 +17,52 @@ from dataclasses import dataclass
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
+try:
+    from templates.project_snapshot_contract import (
+        PRECISION_OVERLAY_ROLES as SNAPSHOT_PRECISION_OVERLAY_ROLES,
+        gate_status,
+        is_project_snapshot,
+        load_json_source,
+        page_num,
+        snapshot_assets,
+        snapshot_slides,
+        validate_snapshot_base,
+    )
+except ModuleNotFoundError:  # direct execution from templates/
+    from project_snapshot_contract import (
+        PRECISION_OVERLAY_ROLES as SNAPSHOT_PRECISION_OVERLAY_ROLES,
+        gate_status,
+        is_project_snapshot,
+        load_json_source,
+        page_num,
+        snapshot_assets,
+        snapshot_slides,
+        validate_snapshot_base,
+    )
+
 
 P_NS = "http://schemas.openxmlformats.org/presentationml/2006/main"
 A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 R_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
 O_R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 NS = {"p": P_NS, "a": A_NS, "r": R_NS, "or": O_R_NS}
+PRECISION_OVERLAY_ROLES = {
+    "logo",
+    "qr-code",
+    "legal-mark",
+    "screenshot",
+}
+EXACT_ASSET_ROLES = {
+    "logo",
+    "product",
+    "client-evidence",
+    "qr-code",
+    "legal-mark",
+    "approved-creative",
+    "storyboard",
+    "client-original",
+    "screenshot",
+}
 
 
 @dataclass
@@ -135,7 +179,367 @@ def inspect_pptx(pptx: Path) -> dict[int, SlideFacts]:
         return facts
 
 
+def _valid_sha256(value: str) -> bool:
+    return len(value) == 64 and all(ch in "0123456789abcdef" for ch in value)
+
+
+def _validate_embedded_picture_assets(
+    *,
+    route: dict,
+    field: str,
+    slide: int,
+    item: SlideFacts,
+    issues: list[dict[str, object]],
+    allowed_roles: set[str],
+    required: bool = False,
+) -> None:
+    raw_assets = route.get(field)
+    code_prefix = field.removesuffix("s")
+    if raw_assets in (None, ""):
+        if required:
+            issues.append({
+                "severity": "high",
+                "code": f"{code_prefix}s_missing",
+                "slide": slide,
+            })
+        return
+    if not isinstance(raw_assets, list) or not raw_assets:
+        issues.append({
+            "severity": "high",
+            "code": f"{code_prefix}s_invalid",
+            "slide": slide,
+        })
+        return
+
+    seen_ids: set[str] = set()
+    for asset_index, asset in enumerate(raw_assets):
+        if not isinstance(asset, dict):
+            issues.append({
+                "severity": "high",
+                "code": f"{code_prefix}_invalid",
+                "slide": slide,
+                "asset_index": asset_index,
+            })
+            continue
+        asset_id = str(asset.get("id", "")).strip()
+        role = str(asset.get("role", "")).strip()
+        if not asset_id or not role:
+            issues.append({
+                "severity": "high",
+                "code": f"{code_prefix}_identity_missing",
+                "slide": slide,
+                "asset_index": asset_index,
+            })
+        elif asset_id in seen_ids:
+            issues.append({
+                "severity": "high",
+                "code": f"{code_prefix}_id_duplicate",
+                "slide": slide,
+                "asset_index": asset_index,
+                "asset_id": asset_id,
+            })
+        else:
+            seen_ids.add(asset_id)
+        if role and role not in allowed_roles:
+            issues.append({
+                "severity": "high",
+                "code": f"{code_prefix}_role_invalid",
+                "slide": slide,
+                "asset_index": asset_index,
+                "role": role,
+            })
+
+        path_value = str(asset.get("path", "")).strip()
+        asset_path = Path(path_value) if path_value else None
+        declared_hash = str(asset.get("sha256", "")).strip().lower()
+        actual_hash = ""
+        if asset_path is None or not asset_path.is_absolute() or not asset_path.is_file():
+            issues.append({
+                "severity": "high",
+                "code": f"{code_prefix}_path_invalid",
+                "slide": slide,
+                "asset_index": asset_index,
+            })
+        else:
+            actual_hash = hashlib.sha256(asset_path.read_bytes()).hexdigest()
+        if not _valid_sha256(declared_hash):
+            issues.append({
+                "severity": "high",
+                "code": f"{code_prefix}_hash_missing",
+                "slide": slide,
+                "asset_index": asset_index,
+            })
+            continue
+        if actual_hash and actual_hash != declared_hash:
+            issues.append({
+                "severity": "high",
+                "code": f"{code_prefix}_hash_mismatch",
+                "slide": slide,
+                "asset_index": asset_index,
+            })
+        if declared_hash not in item.picture_hashes:
+            issues.append({
+                "severity": "high",
+                "code": f"{code_prefix}_not_embedded_exactly",
+                "slide": slide,
+                "asset_index": asset_index,
+            })
+
+
+def _snapshot_asset_hash(
+    asset: dict,
+    *,
+    slide: int,
+    asset_index: int,
+    issues: list[dict[str, object]],
+) -> str:
+    raw_path = str(asset.get("path") or "").strip()
+    raw_hash = str(asset.get("sha256") or "").strip().lower()
+    if not raw_path or not Path(raw_path).is_absolute() or not Path(raw_path).is_file():
+        issues.append({
+            "severity": "high",
+            "code": "snapshot_asset_path_invalid",
+            "slide": slide,
+            "asset_index": asset_index,
+        })
+        return ""
+    if not _valid_sha256(raw_hash):
+        issues.append({
+            "severity": "high",
+            "code": "snapshot_asset_hash_missing",
+            "slide": slide,
+            "asset_index": asset_index,
+        })
+        return ""
+    actual = hashlib.sha256(Path(raw_path).read_bytes()).hexdigest()
+    if actual != raw_hash:
+        issues.append({
+            "severity": "high",
+            "code": "snapshot_asset_hash_mismatch",
+            "slide": slide,
+            "asset_index": asset_index,
+        })
+        return ""
+    return raw_hash
+
+
+def _snapshot_output_asset(slide: dict) -> dict | None:
+    for candidate in (
+        slide.get("render_asset"),
+        slide.get("output_asset"),
+        (slide.get("evidence_state") or {}).get("output_asset")
+        if isinstance(slide.get("evidence_state"), dict)
+        else None,
+    ):
+        if isinstance(candidate, dict):
+            return candidate
+    image_path = str(slide.get("image_path") or "").strip()
+    if image_path:
+        return {"file_path": image_path}
+    return None
+
+
+def _snapshot_file_hash(
+    asset: dict,
+    *,
+    slide: int,
+    code: str,
+    issues: list[dict[str, object]],
+) -> str:
+    raw_path = str(asset.get("file_path") or asset.get("path") or "").strip()
+    path = Path(raw_path) if raw_path else None
+    if path is None or not path.is_absolute() or not path.is_file():
+        issues.append({"severity": "high", "code": code + "_path_invalid", "slide": slide})
+        return ""
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    declared = str(asset.get("sha256") or "").strip().lower()
+    if declared and declared != digest:
+        issues.append({"severity": "high", "code": code + "_hash_mismatch", "slide": slide})
+        return ""
+    return digest
+
+
+def validate_snapshot_routes(pptx: Path, snapshot: dict) -> dict:
+    facts = inspect_pptx(pptx)
+    issues: list[dict[str, object]] = [
+        {"severity": "high", "code": "project_snapshot_invalid", "detail": message}
+        for message in validate_snapshot_base(snapshot)
+    ]
+    if gate_status(snapshot, "visual_evidence_route") != "approved":
+        issues.append({"severity": "high", "code": "gate_2_not_approved"})
+
+    project_assets = snapshot_assets(snapshot)
+    seen: set[int] = set()
+    for snapshot_slide in snapshot_slides(snapshot):
+        if not isinstance(snapshot_slide, dict):
+            continue
+        slide = page_num(snapshot_slide)
+        production_type = str(snapshot_slide.get("production_type") or "").strip()
+        if slide in seen:
+            issues.append({"severity": "high", "code": "duplicate_route", "slide": slide})
+            continue
+        seen.add(slide)
+        item = facts.get(slide)
+        if item is None:
+            issues.append({"severity": "high", "code": "missing_slide", "slide": slide})
+            continue
+
+        slide_id = str(snapshot_slide.get("id") or "")
+        raw_assets = [asset for asset in project_assets if str(asset.get("slide_id") or "") == slide_id]
+        overlay_assets = [
+            asset for asset in raw_assets
+            if str(asset.get("role") or "") in SNAPSHOT_PRECISION_OVERLAY_ROLES
+            and str(asset.get("process_mode") or "") in {"paste", "overlay", "exact", "native"}
+        ]
+        embedded_assets = [
+            asset for asset in raw_assets
+            if production_type != "image_integrated"
+            and (asset.get("user_locked") is True or asset.get("fidelity") == "exact")
+            and str(asset.get("process_mode") or "") in {"paste", "overlay", "exact", "native"}
+        ]
+        for asset in embedded_assets:
+            digest = _snapshot_file_hash(
+                asset, slide=slide, code="exact_asset", issues=issues
+            )
+            if digest and digest not in item.picture_hashes:
+                issues.append({
+                    "severity": "high",
+                    "code": "exact_asset_not_embedded_exactly",
+                    "slide": slide,
+                    "asset_id": asset.get("id"),
+                })
+
+        output_asset = _snapshot_output_asset(snapshot_slide)
+        if production_type in {"image_integrated", "hybrid"} and output_asset is None:
+            issues.append({
+                "severity": "high",
+                "code": "image_path_required",
+                "slide": slide,
+            })
+        if output_asset is not None:
+            output_hash = _snapshot_file_hash(
+                output_asset, slide=slide, code="render_asset", issues=issues
+            )
+            if output_hash and output_hash not in item.picture_hashes:
+                issues.append({
+                    "severity": "high",
+                    "code": "render_asset_not_embedded_exactly",
+                    "slide": slide,
+                })
+
+        native_relationships = " ".join(item.relationship_types).lower()
+        has_native_content = (
+            bool(item.text)
+            or item.graphic_frame_count > 0
+            or any(token in native_relationships for token in ("chart", "video", "media", "hyperlink"))
+        )
+        overlays_in_pptx = item.picture_count - item.full_slide_picture_count
+
+        if production_type == "image_integrated":
+            if item.full_slide_picture_count != 1:
+                issues.append({
+                    "severity": "high",
+                    "code": "image_integrated_requires_one_full_slide_picture",
+                    "slide": slide,
+                    "full_slide_pictures": item.full_slide_picture_count,
+                })
+            if item.text or item.graphic_frame_count or item.shape_count:
+                issues.append({
+                    "severity": "high",
+                    "code": "image_integrated_has_native_core_objects",
+                    "slide": slide,
+                })
+            if overlays_in_pptx > len(overlay_assets):
+                issues.append({
+                    "severity": "high",
+                    "code": "image_integrated_overlay_count_mismatch",
+                    "slide": slide,
+                    "actual": overlays_in_pptx,
+                    "declared": len(overlay_assets),
+                })
+        elif production_type == "hybrid":
+            if item.full_slide_picture_count != 1:
+                issues.append({
+                    "severity": "high",
+                    "code": "hybrid_requires_one_full_slide_background",
+                    "slide": slide,
+                    "full_slide_pictures": item.full_slide_picture_count,
+                })
+            if not has_native_content:
+                issues.append({
+                    "severity": "high",
+                    "code": "hybrid_requires_native_core_objects",
+                    "slide": slide,
+                })
+        elif production_type == "native_editable":
+            if not has_native_content:
+                issues.append({
+                    "severity": "high",
+                    "code": "native_editable_has_no_native_content",
+                    "slide": slide,
+                })
+            if item.full_slide_picture_count and len(item.text) < 10 and item.graphic_frame_count == 0:
+                issues.append({
+                    "severity": "high",
+                    "code": "native_editable_looks_rasterized",
+                    "slide": slide,
+                })
+
+        layout_spec = snapshot_slide.get("layout_spec")
+        if production_type in {"hybrid", "native_editable"} and not isinstance(layout_spec, dict):
+            issues.append({
+                "severity": "high",
+                "code": "layout_spec_required",
+                "slide": slide,
+            })
+            layout_spec = {}
+        blocks = layout_spec.get("blocks") if isinstance(layout_spec, dict) else []
+        if production_type in {"hybrid", "native_editable"} and not isinstance(blocks, list):
+            issues.append({
+                "severity": "high",
+                "code": "layout_spec_blocks_invalid",
+                "slide": slide,
+            })
+            blocks = []
+        required_kinds = {
+            str(block.get("kind") or "")
+            for block in blocks
+            if isinstance(block, dict)
+        }
+        kind_checks = {
+            "title": bool(item.text),
+            "subtitle": bool(item.text),
+            "body": bool(item.text),
+            "text": bool(item.text),
+            "bullets": bool(item.text),
+            "kpi": bool(item.text),
+            "chart": item.graphic_frame_count > 0 or "chart" in native_relationships,
+            "table": item.graphic_frame_count > 0,
+            "image": item.picture_count > item.full_slide_picture_count,
+            "shape": item.shape_count > 0,
+        }
+        for kind in sorted(required_kinds):
+            if kind in kind_checks and not kind_checks[kind]:
+                issues.append({
+                    "severity": "high",
+                    "code": f"missing_layout_spec_{kind}",
+                    "slide": slide,
+                })
+
+    unclassified = sorted(set(facts) - seen)
+    if unclassified:
+        issues.append({"severity": "high", "code": "unclassified_slides", "slides": unclassified})
+    return {
+        "status": "fail" if any(issue["severity"] == "high" for issue in issues) else "pass",
+        "pptx": str(pptx),
+        "slide_count": len(facts),
+        "issues": issues,
+    }
+
+
 def validate_routes(pptx: Path, manifest: dict) -> dict:
+    if is_project_snapshot(manifest):
+        return validate_snapshot_routes(pptx, manifest)
     facts = inspect_pptx(pptx)
     issues: list[dict[str, object]] = []
     routes = manifest.get("slides")
@@ -160,6 +564,7 @@ def validate_routes(pptx: Path, manifest: dict) -> dict:
             })
             continue
         mode = str(route.get("mode", "")).strip()
+        production_route = str(route.get("production_route", "")).strip()
         raw_requires = route.get("requires", [])
         if not isinstance(raw_requires, list):
             issues.append({
@@ -181,6 +586,222 @@ def validate_routes(pptx: Path, manifest: dict) -> dict:
             continue
 
         item = facts[slide]
+        overlay_policy = str(route.get("overlay_policy") or "none").strip()
+        if route.get("allow_logo_overlay") is True and overlay_policy == "none":
+            overlay_policy = "logo-only"
+        _validate_embedded_picture_assets(
+            route=route,
+            field="exact_assets",
+            slide=slide,
+            item=item,
+            issues=issues,
+            allowed_roles=EXACT_ASSET_ROLES,
+        )
+        if overlay_policy in {"logo-only", "precision-assets"}:
+            _validate_embedded_picture_assets(
+                route=route,
+                field="overlay_assets",
+                slide=slide,
+                item=item,
+                issues=issues,
+                allowed_roles=PRECISION_OVERLAY_ROLES,
+                required=True,
+            )
+            overlay_assets = route.get("overlay_assets")
+            if overlay_policy == "logo-only" and isinstance(overlay_assets, list):
+                if len(overlay_assets) != 1:
+                    issues.append({
+                        "severity": "high",
+                        "code": "logo_overlay_requires_exactly_one_asset",
+                        "slide": slide,
+                    })
+                elif str(overlay_assets[0].get("role", "")).strip() != "logo":
+                    issues.append({
+                        "severity": "high",
+                        "code": "logo_overlay_role_must_be_logo",
+                        "slide": slide,
+                    })
+        if production_route == "ppt-god-full-image":
+            provenance = route.get("generation_provenance")
+            if not isinstance(provenance, dict):
+                issues.append({
+                    "severity": "high",
+                    "code": "ppt_god_generation_provenance_missing",
+                    "slide": slide,
+                })
+            else:
+                if str(provenance.get("producer", "")).strip() != "ppt-god":
+                    issues.append({
+                        "severity": "high",
+                        "code": "ppt_god_producer_invalid",
+                        "slide": slide,
+                    })
+                if str(provenance.get("method", "")).strip() != "native-generate-slides":
+                    issues.append({
+                        "severity": "high",
+                        "code": "ppt_god_generation_method_invalid",
+                        "slide": slide,
+                    })
+                if not str(provenance.get("project_id", "")).strip():
+                    issues.append({
+                        "severity": "high",
+                        "code": "ppt_god_project_id_missing",
+                        "slide": slide,
+                    })
+                try:
+                    page_num = int(provenance.get("page_num", 0))
+                except (TypeError, ValueError):
+                    page_num = 0
+                if page_num <= 0:
+                    issues.append({
+                        "severity": "high",
+                        "code": "ppt_god_page_num_invalid",
+                        "slide": slide,
+                    })
+                asset_value = str(provenance.get("asset_path", "")).strip()
+                asset_path = Path(asset_value) if asset_value else None
+                declared_hash = str(provenance.get("sha256", "")).strip().lower()
+                actual_hash = ""
+                if asset_path is None or not asset_path.is_absolute() or not asset_path.is_file():
+                    issues.append({
+                        "severity": "high",
+                        "code": "ppt_god_asset_path_invalid",
+                        "slide": slide,
+                    })
+                else:
+                    actual_hash = hashlib.sha256(asset_path.read_bytes()).hexdigest()
+                if not _valid_sha256(declared_hash):
+                    issues.append({
+                        "severity": "high",
+                        "code": "ppt_god_asset_hash_missing",
+                        "slide": slide,
+                    })
+                else:
+                    if actual_hash and actual_hash != declared_hash:
+                        issues.append({
+                            "severity": "high",
+                            "code": "ppt_god_asset_hash_mismatch",
+                            "slide": slide,
+                        })
+                    if declared_hash not in item.picture_hashes:
+                        issues.append({
+                            "severity": "high",
+                            "code": "ppt_god_asset_not_embedded_exactly",
+                            "slide": slide,
+                        })
+        if production_route == "reference-fusion":
+            reference_assets = route.get("reference_assets")
+            if not isinstance(reference_assets, list) or not reference_assets:
+                issues.append({
+                    "severity": "high",
+                    "code": "reference_fusion_assets_missing",
+                    "slide": slide,
+                })
+            else:
+                for index, asset in enumerate(reference_assets):
+                    if not isinstance(asset, dict):
+                        issues.append({
+                            "severity": "high",
+                            "code": "reference_fusion_asset_invalid",
+                            "slide": slide,
+                            "asset_index": index,
+                        })
+                        continue
+                    if not str(asset.get("id", "")).strip() or not str(asset.get("role", "")).strip():
+                        issues.append({
+                            "severity": "high",
+                            "code": "reference_fusion_asset_identity_missing",
+                            "slide": slide,
+                            "asset_index": index,
+                        })
+                    ref_value = str(asset.get("path", "")).strip()
+                    ref_path = Path(ref_value) if ref_value else None
+                    ref_hash = str(asset.get("sha256", "")).strip().lower()
+                    if ref_path is None or not ref_path.is_absolute() or not ref_path.is_file():
+                        issues.append({
+                            "severity": "high",
+                            "code": "reference_fusion_asset_path_invalid",
+                            "slide": slide,
+                            "asset_index": index,
+                        })
+                    if not _valid_sha256(ref_hash):
+                        issues.append({
+                            "severity": "high",
+                            "code": "reference_fusion_asset_hash_missing",
+                            "slide": slide,
+                            "asset_index": index,
+                        })
+                    elif ref_path is not None and ref_path.is_file():
+                        actual_ref_hash = hashlib.sha256(ref_path.read_bytes()).hexdigest()
+                        if actual_ref_hash != ref_hash:
+                            issues.append({
+                                "severity": "high",
+                                "code": "reference_fusion_asset_hash_mismatch",
+                                "slide": slide,
+                                "asset_index": index,
+                            })
+
+            provenance = route.get("generation_provenance")
+            if not isinstance(provenance, dict):
+                issues.append({
+                    "severity": "high",
+                    "code": "reference_fusion_generation_provenance_missing",
+                    "slide": slide,
+                })
+            else:
+                producer = str(provenance.get("producer", "")).strip()
+                method = str(provenance.get("method", "")).strip()
+                if not producer:
+                    issues.append({
+                        "severity": "high",
+                        "code": "reference_fusion_producer_missing",
+                        "slide": slide,
+                    })
+                disallowed_methods = {
+                    "native-slide-render",
+                    "powerpoint-render",
+                    "screenshot",
+                    "flattened-slide",
+                    "rasterized-native-slide",
+                }
+                if not method or method in disallowed_methods:
+                    issues.append({
+                        "severity": "high",
+                        "code": "reference_fusion_method_invalid",
+                        "slide": slide,
+                        "method": method,
+                    })
+                output_value = str(provenance.get("asset_path", "")).strip()
+                output_path = Path(output_value) if output_value else None
+                output_hash = str(provenance.get("sha256", "")).strip().lower()
+                actual_output_hash = ""
+                if output_path is None or not output_path.is_absolute() or not output_path.is_file():
+                    issues.append({
+                        "severity": "high",
+                        "code": "reference_fusion_output_path_invalid",
+                        "slide": slide,
+                    })
+                else:
+                    actual_output_hash = hashlib.sha256(output_path.read_bytes()).hexdigest()
+                if not _valid_sha256(output_hash):
+                    issues.append({
+                        "severity": "high",
+                        "code": "reference_fusion_output_hash_missing",
+                        "slide": slide,
+                    })
+                else:
+                    if actual_output_hash and actual_output_hash != output_hash:
+                        issues.append({
+                            "severity": "high",
+                            "code": "reference_fusion_output_hash_mismatch",
+                            "slide": slide,
+                        })
+                    if output_hash not in item.picture_hashes:
+                        issues.append({
+                            "severity": "high",
+                            "code": "reference_fusion_output_not_embedded_exactly",
+                            "slide": slide,
+                        })
         if route.get("specialist_route") == "focusmedia-image-gen":
             expected_specialist_hash = str(
                 route.get("specialist_asset_sha256") or ""
@@ -226,9 +847,6 @@ def validate_routes(pptx: Path, manifest: dict) -> dict:
                     issues.append({"severity": "high", "code": f"missing_required_{required}", "slide": slide})
         else:
             overlay_pictures = item.picture_count - item.full_slide_picture_count
-            overlay_policy = str(route.get("overlay_policy") or "none").strip()
-            if route.get("allow_logo_overlay") is True and overlay_policy == "none":
-                overlay_policy = "logo-only"
             if overlay_policy not in {
                 "none",
                 "logo-only",
@@ -333,13 +951,28 @@ def validate_routes(pptx: Path, manifest: dict) -> dict:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Verify final PPTX routes from a read-only PPT God project snapshot"
+    )
     parser.add_argument("pptx", type=Path)
-    parser.add_argument("manifest", type=Path)
+    parser.add_argument("project_snapshot", help="snapshot JSON file or HTTP(S) URL")
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
 
-    manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+    manifest = load_json_source(args.project_snapshot)
+    if not is_project_snapshot(manifest):
+        print(json.dumps({
+            "status": "fail",
+            "issues": [{
+                "severity": "high",
+                "code": "project_snapshot_required",
+                "detail": (
+                    "new CLI workflow requires a PPT God project_snapshot; "
+                    "legacy route_manifest.json is read-only compatibility data"
+                ),
+            }],
+        }, ensure_ascii=False, indent=2))
+        return 1
     report = validate_routes(args.pptx, manifest)
     output = json.dumps(report, ensure_ascii=False, indent=2) + "\n"
     if args.out:

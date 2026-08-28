@@ -2,14 +2,15 @@
 
 # Deck Studio
 
-### 一套 PPT，逐页选择最合适的做法
+### 一套 PPT，逐页选择最合适的生产类型
 
-面向 Codex、Claude Code 等 Agent 的统一 PPT 生产 Skill：先锁定内容，再逐页选择可编辑、纯图、混合或精修路线，最终验收真实 PPTX。
+面向 Codex、Claude Code 等 Agent 的统一 PPT 生产 Skill：先锁定内容与证据，再逐页选择图片一体型、
+混合型或原生可编辑型，最终验收真实 PPTX。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-F0528A.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-111111.svg)](https://www.python.org/)
-[![Tests: 94 passed](https://img.shields.io/badge/tests-94%20passed-A8F04F.svg)](#本地验证)
-[![PPTX: editable](https://img.shields.io/badge/PPTX-editable-428FEA.svg)](#四种生产路线)
+[![Tests: 126 passed](https://img.shields.io/badge/tests-126%20passed-A8F04F.svg)](#本地验证)
+[![PPTX: mixed](https://img.shields.io/badge/PPTX-mixed-428FEA.svg)](#三种生产类型)
 
 </div>
 
@@ -52,32 +53,36 @@ python3 -m venv .venv
 精修这份 PPT。内容不变，统一整册视觉，并检查最终文件。
 ```
 
-## 它解决三个关键问题
+## 它管理八项关键能力
 
-| 关键判断 | Deck Studio 的做法 | 直接收益 |
+| 能力 | Deck Studio 的做法 | 直接收益 |
 | --- | --- | --- |
-| **内容是否定了** | 先确认听众、目标、逐页主张和证据；客户可见文案与内部工作注记分离 | 制作过程中不再反复漂移口径 |
-| **这一页该怎么做** | 每页单独选择可编辑、纯图、混合或来源保留方式 | 视觉强度与后续可修改性可以同时成立 |
-| **最后文件能否交付** | 检查最终 PPTX 的文字、字体、背景、媒体关系、页面路线与整册一致性 | 发现截图看不出来的结构与兼容问题 |
+| **权威源管理** | 锁定唯一母稿、用户最新修改和本轮变更边界 | 新反馈不会与旧稿混成一团 |
+| **叙事与内容锁定** | 确认逐页主张、证据、现场话术和转场 | 页面先讲对，再进入视觉生产 |
+| **页面路由** | 每页单独选择图片一体型、混合型或原生可编辑型 | 视觉质量与真实编辑需求同时成立 |
+| **视觉系统** | 用统一母体管理页型家族，再允许案例品牌形成变体 | 不同章节有辨识度，整册仍像同一套 PPT |
+| **真实资产** | 分开管理参考资产、精确资产和生成资产，并核对文件指纹 | 使用真实产品与 Logo，同时阻止模型仿造事实 |
+| **页面生产** | 按已批准家族样张生产图片一体页、混合页或原生对象页 | 工具不会反过来改变用户要的页面形态 |
+| **装配与修改保真** | 每页只有一个基底，精确层、媒体和用户已确认页面按契约保留 | 避免遮挡式混搭和修改后静默丢媒体 |
+| **观众验收** | 检查最终 PPTX 的可读性、品牌、媒体、路线和整册关系 | 发现截图和“导出成功”掩盖的交付问题 |
 
 **材料或旧稿 → 内容锁定 → 逐页选路 → 装配整册 → 验收最终 PPTX**
 
-## 四种生产路线
+## 三种生产类型
 
-![Deck Studio 为可编辑、纯图、混合和旧稿精修页面分别选择生产路线](assets/readme/route-board.svg)
+![Deck Studio 为图片一体型、混合型和原生可编辑型页面选择生产方式](assets/readme/route-board.svg)
 
 | 路线 | 适合场景 | 交付重点 |
 | --- | --- | --- |
-| **可编辑** | 数据、表格、案例、多媒体、持续修改 | 保留原生文本、图表和对象关系 |
-| **纯图** | 演讲、发布、课程、视觉冲击优先 | 文案冻结、逐页校对、整套视觉一致 |
-| **混合** | 客户提案、策略汇报、品牌方案 | 正文可编辑，少量关键页使用整页视觉 |
-| **精修** | 已有 PPT 内容基本成立 | 保留内容关系，统一设计并修复兼容问题 |
+| **图片一体型** | 演讲、发布、课程、视觉冲击优先 | 一张全页图承担核心文字、画面与构图 |
+| **混合型** | 关键标题、数据、视频或图表需要修改 | 全页底图承担视觉，少量关键对象保持原生 |
+| **原生可编辑型** | 数据、表格、流程、媒体和持续修改 | 全部所需内容以真实 PPT 对象交付 |
 
 ## 交付前，检查真实文件
 
 ![Deck Studio 使用整册总览和文件级审计检查最终 PPTX](assets/readme/verification-board.svg)
 
-Deck Studio 的验收对象是最终 `.pptx`。仓库提供 94 项回归测试，以及可以直接运行的整册审计、字体检查、背景一致性、页面路线完整性与改稿保真工具。
+Deck Studio 的验收对象是最终 `.pptx`。仓库提供 126 项回归测试，以及可以直接运行的整册审计、字体检查、背景一致性、页面路线完整性与改稿保真工具。
 
 ## 适合哪些任务
 
@@ -90,13 +95,15 @@ Deck Studio 的验收对象是最终 `.pptx`。仓库提供 94 项回归测试�
 
 ## 它如何工作
 
-1. 识别任务属于从零制作、已有稿精修、继续修改还是合并重做。
+1. 锁定唯一母稿、用户最新修改和本轮变更边界。
 2. 对会改变叙事的任务先完成逐页内容锁定。
-3. 根据页面用途选择可编辑、纯图、来源保留或参考融合路线。
-4. 按页型家族统一字体、背景、边距、图像关系和改造强度。
-5. 装配最终 PPTX，并运行与任务风险匹配的验证工具。
+3. 根据页面视觉职责选择图片一体型、混合型或原生可编辑型，并确认真实证据。
+4. 按页型家族定义统一母视觉，分别确认视觉代表页与必要的构造样张。
+5. 登记真实资产，按路线生产并保留精确图片和媒体关系。
+6. 装配最终 PPTX，从观众、品牌、播放和结构四个视角验收。
 
-完整生产规范见 [SKILL.md](SKILL.md)。
+完整生产规范见 [SKILL.md](SKILL.md)，能力架构与阶段门见
+[references/capability-model.md](references/capability-model.md)。
 
 <details>
 <summary><strong>自带的质量工具</strong></summary>
@@ -105,8 +112,9 @@ Deck Studio 的验收对象是最终 `.pptx`。仓库提供 94 项回归测试�
 - `templates/verify_pptx.py`：核对已有稿修改后的内容与资源保真；
 - `templates/typography_audit.py`：检查字体家族、继承字体和字号阶梯；
 - `templates/verify_background_consistency.py`：检查同类页面的精确背景色；
-- `templates/verify_route_integrity.py`：检查可编辑页、纯图页和 Overlay 是否符合路线清单；
-- `templates/verify_page_plan.py`：检查逐页内容与生产契约；
+- `templates/verify_route_integrity.py`：用 PPT God 项目快照检查三种页面类型的实际装配；
+- `templates/verify_page_plan.py`：检查 Gate 1、逐页内容和快照基础契约；
+- `templates/verify_workflow_ready.py`：结合独立正式预检检查四个 Gate、问题复验和全页装配；
 - `scripts/contact_sheet.py`：生成整册轻量总览，用于视觉复核。
 
 </details>
@@ -125,14 +133,15 @@ Deck Studio 的验收对象是最终 `.pptx`。仓库提供 94 项回归测试�
 .venv/bin/python -m pytest -q
 ```
 
-当前公开版本已在独立的 Python 3.11 环境中重新安装依赖，并通过全部 94 项测试。
+当前版本已通过全部 126 项本地回归测试。
 
 <details>
 <summary><strong>项目目录</strong></summary>
 
-- `SKILL.md`：统一入口与生产路由；
+- `SKILL.md`：统一入口、条件路由与阶段串联；
+- `references/capability-model.md`：能力架构、阶段门和文档职责；
 - `workflows/`：已有稿精修六阶段；
-- `references/`：纯图、混合与可选集成规则；
+- `references/`：页面生产契约、纯图产线与可选集成规则；
 - `knowledge/`：按问题读取的 PPT 设计与兼容知识；
 - `templates/`：审计、修复和硬验证工具；
 - `scripts/`：大纲派生、整页图生产、装配和质检；

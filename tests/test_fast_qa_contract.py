@@ -31,9 +31,10 @@ def test_representative_page_only_authorizes_its_family():
 
     assert "代表页通过只授权同页型批次" in skill
     assert "代表页确认只批准其所属家族" in design
-    assert "代表页只能批准同家族批次" in checklist
+    assert "代表页只能批准同一家族" in checklist
     assert "verify_page_families.py" in skill
-    assert "当改动覆盖 3 页以上、涉及 2 个以上页型或准备批量应用规则时" in skill
+    assert "同一家族首次出现" in skill
+    assert "构造样张" in skill
 
 
 def test_skill_upgrades_pass_an_abstraction_gate():
@@ -44,6 +45,21 @@ def test_skill_upgrades_pass_an_abstraction_gate():
     assert "客户名、页码、指定字体、指定色值和具体构图只留在案例" in skill
     assert "小任务可用简短契约解决时" in skill
     assert "创建清单、配置或新文件" in skill
+
+
+def test_skill_remains_a_router_with_single_detailed_owners():
+    skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+    capability = (
+        SKILL_ROOT / "references" / "capability-model.md"
+    ).read_text(encoding="utf-8")
+
+    assert "主 Skill 只负责识别入口、串联" in skill
+    assert "唯一详细说明" in skill
+    assert "唯一详细契约" in skill
+    assert '"generation_provenance"' not in skill
+    assert '"approved_by"' not in skill
+    assert "## 架构与单一所有者" in capability
+    assert "同一规则只进入一个文档" in skill
 
 
 def test_rewritten_pages_have_scoped_typography_gate():
@@ -72,14 +88,18 @@ def test_focusmedia_routes_are_first_class_and_orthogonal():
     assert "references/focusmedia-integration.md" in skill
     assert "references/focusmedia-integration.md" in readme
     assert "focusmedia-integration.md" in routing
-    assert "reference-fusion" in skill
+    assert "image_integrated" in skill
+    assert "hybrid" in skill
+    assert "native_editable" in skill
+    assert "environment-reference-fusion" in focusmedia
     assert "media_validation_report" in focusmedia
     assert "verify_focusmedia_output.py" in focusmedia
     assert "标准带框图" in focusmedia
     assert "不得平贴整台设备" in focusmedia
-    assert "specialist_asset_scope" in focusmedia
+    assert "user_locked" in focusmedia
+    assert "fidelity: exact" in focusmedia
     assert "不再交给 PPT God 或通用图片模型重画" in focusmedia
-    assert "普通 PPT 不加载" in focusmedia
+    assert "不加载本文件" in focusmedia
     assert "media_validation_report" not in skill
 
 

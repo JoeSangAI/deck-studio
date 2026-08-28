@@ -1,12 +1,13 @@
-# 大纲 HTML Schema — 文字的唯一权威源
+# 大纲 HTML Schema — 视觉布局描述
 
-`assets/outline-template.html` 是一套设计过的**幻灯片查看器母版**（照搬实战过验的「制作版」viewer）：深色顶栏 + 按章节分组的缩略图卡片墙 → 点开进灯箱看 1280×720 固定画布页，支持 ‹›/Esc 翻页、页码、「网页版 / 纯图版」切换、讲稿层（N 键）。查看器 chrome（顶栏 / 卡片墙 / 灯箱 / 切换 / 讲稿）全内建、别动；你只在 `<section class="page">` 里填内容。`outline_to_deck.py` 解析每个 `section.page` 派生 `deck.json`（纯图版每页的 gpt-image-2 prompt）。
+`assets/outline-template.html` 是一套设计过的幻灯片查看器母版：深色顶栏、章节缩略图卡片墙、1280×720
+灯箱、翻页、页码、网页版/纯图版切换和讲稿层。PPT God `project_snapshot` 保存正式内容、页序、证据、
+生产类型和批准状态；HTML 只描述网页版布局和纯图 prompt 的视觉槽位。`outline_to_deck.py` 把两者合并为
+一次性 `deck.json` 运行清单。
 
-**两层文字、同一个 section**：
-- **网页版**文字活在你手排的富 HTML 里（灯箱 / 卡片墙直接渲染这段）。
-- **纯图版** prompt 的文字来自同一 `<section>` 上的 `data-title` / `data-sum`（+ 可选 `data-sub`/`data-kicker`）。
-
-两者手写在同一处 section，`deck.json` 是派生物、永不手改。改文字 = 改这一个 section → 重派生 → 只重生变动页。
+正式制作时，观众文字只从 `project_snapshot.slides[]` 读取。HTML 的富内容和 `data-*` 可用于无 PPT God
+状态的模板演示；一旦提供快照，它们只控制布局、背景、图像提示和讲稿呈现，不能覆盖正式文字。
+`deck.json` 永远是派生物，不手改。
 
 ## 目录
 1. 文件结构
@@ -29,7 +30,8 @@
 </div>
 ```
 
-页序 = section 在 DOM 中的先后。图片文件名 = `data-id`（`pptimg/<id>.png`），与 `deck.json` 的 slide id 一致。**重排页只改 section 顺序即可，不会错位**（图号用 `data-id` 解耦，非 DOM 下标）。卡片墙按 `data-ch` 分组，格式 `01 · 第一章`（JS/脚本按 ` · ` 拆成 CH 号 + 章名）。
+正式页序以 `project_snapshot.slides[].page_num` 为准，section 数量和顺序必须与之匹配。图片文件名由
+`data-id` 决定（`pptimg/<id>.png`）；需要重排时先在 PPT God 改页序，再同步 HTML 布局顺序。
 
 ## 2. deck-config 块
 
@@ -51,8 +53,8 @@ deck 级配置的唯一权威源，`outline_to_deck.py` 读这里。`style` 槽�
 |---|---|---|
 | `data-id` | 是 | 唯一页 id（`S01`/`K01`…）。决定图片名 `pptimg/<id>.png`，重复报错退出 |
 | `data-ch` | 是 | 章节（`01 · 第一章`），卡片墙按它分组 |
-| `data-title` | 是 | 页标题；纯图版 prompt 的 title（缺省回退 section 内 h1/h2 文本） |
-| `data-sum` | 是 | 内容摘要，`" / "` 分条；纯图版 prompt 的 items（网页版不显示它，只显示富 HTML） |
+| `data-title` | 模板演示时 | 无 project_snapshot 时的页标题；正式项目由快照覆盖 |
+| `data-sum` | 模板演示时 | 无 project_snapshot 时的内容摘要；正式项目由快照覆盖 |
 | `data-layout` | 否 | 纯图版式键（§6）。缺省按 class 推断：`finale`→back-cover、`divi`→divider、否则 content。未知键回退 content 并告警 |
 | `data-kicker` | 否 | 纯图版 kicker。缺省回退 `.kick` 文本，再回退 `data-ch` |
 | `data-sub` | 否 | 纯图版副题 / caption（仅纯图版用；**无 `.sub` 回退**，要进图就得写这个属性） |
@@ -66,7 +68,7 @@ deck 级配置的唯一权威源，`outline_to_deck.py` 读这里。`style` 槽�
 - 用 §5 的版式 class 拼版（`.kick` 起手 + `.stats`/`.pts`/`.two`/`.ladder`/… 之一撑内容）。
 - 图标用 sprite：`<svg class="ic"><use href="#i-target"/></svg>`（`#i-*` 全集见 §5）。
 - 讲稿：section 内放一个 `<div class="pnotes">…</div>`，只在灯箱讲稿层（N 键）显示，投影 / 纯图版不含。
-- **纯图版不读这段富 HTML**，只读 `data-title` / `data-sum` / `data-sub` / `data-kicker`——手排页面时，同步把该页要进图的文字浓缩进这几个 data 属性（标签式短句，与富 HTML 内容一致但更凝练）。
+- 正式项目的纯图 prompt 文字来自快照；富 HTML 和 `data-*` 只提供视觉布局与无快照模板演示。
 
 ## 5. 模板内建版式 CSS class（手排用）
 
@@ -148,19 +150,21 @@ deck 级配置的唯一权威源，`outline_to_deck.py` 读这里。`style` 槽�
 
 自检：派生后先 `gen_deck.py deck.json --dry-run` 打印每页 prompt，肉眼过一遍再进样张门。
 
-传入已批准 `page_plan.json` 时，派生器还会原样携带 `mode`、`production_route`、
-`overlay_policy`、`source_lock`、`reference_assets`、专业路由、专业资产 checksum 和最终验收报告路径。
-这些字段只来自页面计划，不从 HTML 或提示词猜测。
+传入 PPT God 的只读 `project_snapshot` 后，派生器以 `slides[].content_json` 为唯一文字来源，并携带
+`production_type`、`visual_role`、`type`、`evidence_state`、`source_ref`、`image_path`、`layout_spec`，以及
+按 `slide_id` 从 `workflow.assets[]` 取出的资产。专业路由和媒体验收元数据只在真实快照中存在时携带；
+这些字段不从 HTML、提示词或人工 JSON 猜测。
 
-分众媒体页还会携带 `specialist_asset_scope`、`media_contract` 与 `framed_asset`。环境图的
-`framed_asset` 是标准带框阶段的实际成品证据；纯图生成器只接受 `full-slide` 专业成品并精确复制，
-不会把它作为 photo 再送入通用图片模型。
+分众媒体页还会携带真实存在的 `media_contract` 与页面绑定资产。图片一体页的 `image_path` 是专业链路的
+最终成品时，纯图生成器精确复制它，不会把它作为 photo 再送入通用图片模型。混合页和原生可编辑页由
+PPT God 装配。
 
 ## 8. 改字→重出图工作流
 
 ```
-改大纲 HTML 里那一页的富 HTML / data 属性
-python outline_to_deck.py outline.html --page-plan page_plan.json --route-manifest route_manifest.json
+先在 PPT God 修改并保存页面内容，再获取当前 revision 的 project_snapshot
+按需改大纲 HTML 里该页的视觉布局描述
+python outline_to_deck.py outline.html --project-snapshot project_snapshot.json
 python gen_deck.py deck.json --only S07 --force  # 只重生那一页（缓存跳过其余）
 python inline_html.py deck.json outline.html     # 需要自包含 HTML 时刷新
 ```

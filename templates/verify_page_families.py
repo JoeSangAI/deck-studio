@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate page-family coverage before batch PPT refinement."""
+"""Validate Gate 3 page-family and construction prototypes from PPT God."""
 
 from __future__ import annotations
 
@@ -8,6 +8,19 @@ import json
 import sys
 from collections import Counter
 from pathlib import Path
+
+try:
+    from templates.project_snapshot_contract import (
+        is_project_snapshot,
+        load_json_source,
+        validate_family_gate,
+    )
+except ModuleNotFoundError:  # direct execution from templates/
+    from project_snapshot_contract import (
+        is_project_snapshot,
+        load_json_source,
+        validate_family_gate,
+    )
 
 
 ALLOWED_MODES = {"image-led", "native-redesign", "shell-unify", "preserve"}
@@ -27,6 +40,8 @@ def _int_slides(value: object, label: str, issues: list[str]) -> list[int]:
 
 
 def validate_page_families(data: dict) -> dict:
+    if is_project_snapshot(data):
+        return validate_family_gate(data)
     issues: list[str] = []
     slide_count = data.get("slide_count")
     if not isinstance(slide_count, int) or isinstance(slide_count, bool) or slide_count < 1:
@@ -130,11 +145,20 @@ def validate_page_families(data: dict) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("manifest", type=Path)
+    parser.add_argument("project_snapshot", help="snapshot JSON file or HTTP(S) URL")
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
 
-    data = json.loads(args.manifest.read_text(encoding="utf-8"))
+    data = load_json_source(args.project_snapshot)
+    if not is_project_snapshot(data):
+        print(json.dumps({
+            "status": "fail",
+            "issues": [
+                "new CLI workflow requires a PPT God project_snapshot; "
+                "legacy page_families.json is read-only compatibility data"
+            ],
+        }, ensure_ascii=False, indent=2))
+        return 1
     report = validate_page_families(data)
     payload = json.dumps(report, ensure_ascii=False, indent=2) + "\n"
     if args.out:

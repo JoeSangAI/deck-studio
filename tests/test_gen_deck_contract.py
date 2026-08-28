@@ -261,3 +261,92 @@ def test_outline_maps_orthogonal_knowledge_and_media_routes(tmp_path):
     assert slide["reference_assets"][0]["id"] == "fm-lcd-reference-001"
     assert "客户可见覆盖能力" in slide["prompt"]
     assert "INTERNAL-OUTLINE-COPY" not in slide["prompt"]
+
+
+def test_outline_uses_live_project_snapshot_as_single_source(tmp_path):
+    html = tmp_path / "outline.html"
+    html.write_text(
+        """
+        <script id="deck-config" type="application/json">
+        {"style":{"scene_domain":"abstract light"},"workers":1}
+        </script>
+        <section class="page" data-id="S01" data-title="INTERNAL COPY"></section>
+        """,
+        encoding="utf-8",
+    )
+    image = tmp_path / "page-1.png"
+    image.write_bytes(b"page image")
+    asset = tmp_path / "source.png"
+    asset.write_bytes(b"locked source")
+    snapshot = {
+        "project": {"id": "p1", "title": "提案", "content_plan_confirmed": True},
+        "workflow": {
+            "project_id": "p1",
+            "workflow_version": "1.0",
+            "revision": 2,
+            "enabled": True,
+            "gates": {},
+            "slides": [{"id": "slide-1", "family": "content"}],
+            "families": {},
+            "assets": [{
+                "id": "asset-1",
+                "slide_id": "slide-1",
+                "role": "product",
+                "file_path": str(asset),
+            }],
+        },
+        "slides": [{
+            "id": "slide-1",
+            "page_num": 1,
+            "type": "case",
+            "content_json": {"title": "真实标题", "claim": "真实主张"},
+            "image_path": str(image),
+            "layout_spec": {"blocks": [{"kind": "title"}]},
+            "production_type": "hybrid",
+            "visual_role": "evidence",
+            "evidence_state": {"status": "confirmed", "selected_asset_id": "asset-1"},
+            "source_ref": {"kind": "project"},
+        }],
+    }
+
+    slide = OUTLINE.parse_outline(str(html), snapshot)["slides"][0]
+
+    assert "真实标题" in slide["prompt"]
+    assert "INTERNAL COPY" not in slide["prompt"]
+    assert slide["production_type"] == "hybrid"
+    assert slide["family"] == "content"
+    assert slide["image_path"] == str(image)
+    assert slide["layout_spec"]["blocks"][0]["kind"] == "title"
+    assert [item["id"] for item in slide["assets"]] == ["asset-1"]
+
+
+def test_live_image_path_is_copied_without_generic_generation(tmp_path):
+    image = tmp_path / "approved-page.png"
+    image.write_bytes(
+        b"\x89PNG\r\n\x1a\n"
+        + b"\x00\x00\x00\rIHDR"
+        + struct.pack(">II", 2048, 1152)
+        + b"approved full page"
+    )
+    path = write_deck(tmp_path, {
+        "id": "S01",
+        "prompt": "Approved page must not be regenerated",
+        "production_type": "image_integrated",
+        "image_path": str(image),
+    })
+
+    _, slides, _, _, _, _ = GEN.load_config(path)
+
+    assert slides[0]["prebuilt_slide_asset"] == str(image)
+
+
+def test_hybrid_page_is_reserved_for_ppt_god_assembly(tmp_path):
+    path = write_deck(tmp_path, {
+        "id": "S01",
+        "prompt": "Hybrid page",
+        "production_type": "hybrid",
+    })
+
+    _, slides, _, _, _, _ = GEN.load_config(path)
+
+    assert slides[0]["external_assembly"] is True

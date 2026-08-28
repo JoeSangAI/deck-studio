@@ -78,6 +78,29 @@ python3 templates/typography_audit.py output.pptx \
 
 不要用“整册大部分文字是目标字体”替代新增页硬检查。
 
+### 6. 局部换图后，嵌入视频悄悄消失
+
+**症状**：
+- 页面外观正常，视频封面仍在，但点击后无法播放
+- 修改前有嵌入视频，修改后的 `ppt/media/` 或页面媒体关系已经减少
+
+**根因**：
+- 编辑库重新序列化整页时没有保留 PowerPoint 的 `video` / `media` 双关系
+- 用截图或封面图替换了视频形状，却没有保留原始媒体包
+- 只检查页面渲染结果，没有核对 PPTX 包内媒体关系与文件字节
+
+**修法**：
+- 对含视频页面优先做包级、窄范围替换，保留未触及的媒体文件和关系
+- 若本轮没有授权修改音视频，交付前运行：
+
+```bash
+python3 templates/verify_pptx.py source.pptx output.pptx \
+  --require-media-preserved
+```
+
+- 该检查按页去重 PowerPoint 指向同一文件的 `video` / `media` 关系，并比较嵌入文件指纹；任何减少、
+  替换或静默丢失都直接报错
+
 ## 最小兜底流程
 
 1. 记录问题页、shape id、目标文本。

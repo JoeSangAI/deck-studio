@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Validate the approved page-level narrative contract before bulk deck production."""
+"""Validate Gate 1 and page contracts from a PPT God project snapshot.
+
+Legacy ``page_plan.json`` validation remains available through the Python function
+for auditing old projects.  The CLI accepts the read-only project snapshot only.
+"""
 
 from __future__ import annotations
 
@@ -9,6 +13,19 @@ import json
 import re
 from pathlib import Path
 from typing import Any
+
+try:
+    from templates.project_snapshot_contract import (
+        is_project_snapshot,
+        load_json_source,
+        validate_content_gate,
+    )
+except ModuleNotFoundError:  # direct execution from templates/
+    from project_snapshot_contract import (
+        is_project_snapshot,
+        load_json_source,
+        validate_content_gate,
+    )
 
 
 PUBLIC_REQUIRED_FIELDS = (
@@ -47,6 +64,17 @@ PRECISION_OVERLAY_ROLES = {
     "logo",
     "qr-code",
     "legal-mark",
+    "screenshot",
+}
+EXACT_ASSET_ROLES = {
+    "logo",
+    "product",
+    "client-evidence",
+    "qr-code",
+    "legal-mark",
+    "approved-creative",
+    "storyboard",
+    "client-original",
     "screenshot",
 }
 REFERENCE_ROLES = {
@@ -250,6 +278,46 @@ def _validate_reference_assets(
                 errors.append(
                     f"{item_prefix} verified-standard-frame must use {expected_filename}"
                 )
+
+
+def _validate_exact_assets(
+    slide_index: int,
+    assets: Any,
+    errors: list[str],
+    hash_cache: dict[Path, str],
+) -> None:
+    if assets in (None, ""):
+        return
+    prefix = f"slide {slide_index} exact_assets"
+    if not isinstance(assets, list) or not assets:
+        errors.append(f"{prefix} must be a non-empty array when declared")
+        return
+    seen_ids: set[str] = set()
+    for asset_index, asset in enumerate(assets, start=1):
+        item_prefix = f"{prefix}[{asset_index}]"
+        if not isinstance(asset, dict):
+            errors.append(f"{item_prefix} must be an object")
+            continue
+        for field in ("id", "path", "sha256", "role"):
+            if not _present(asset.get(field)):
+                errors.append(f"{item_prefix} field {field} must be non-empty")
+        asset_id = str(asset.get("id") or "").strip()
+        if asset_id:
+            if asset_id in seen_ids:
+                errors.append(f"{item_prefix} id duplicates {asset_id}")
+            seen_ids.add(asset_id)
+        role = str(asset.get("role") or "").strip()
+        if role and role not in EXACT_ASSET_ROLES:
+            errors.append(
+                f"{item_prefix} role must be one of {sorted(EXACT_ASSET_ROLES)}"
+            )
+        _validate_file_evidence(
+            prefix=item_prefix,
+            path_value=asset.get("path"),
+            sha256_value=asset.get("sha256"),
+            errors=errors,
+            hash_cache=hash_cache,
+        )
 
 
 def _normalize_focusmedia_type(value: Any) -> str:
@@ -524,6 +592,13 @@ def validate_page_plan(
     plan: dict[str, Any],
     route_manifest: dict[str, Any] | None = None,
 ) -> list[str]:
+    if is_project_snapshot(plan):
+        if route_manifest is not None:
+            return [
+                "PPT God project snapshot is the sole source; "
+                "a separate route manifest is not allowed"
+            ]
+        return validate_content_gate(plan)
     errors: list[str] = []
     hash_cache: dict[Path, str] = {}
     if plan.get("status") != "approved":
@@ -616,6 +691,12 @@ def validate_page_plan(
                 errors,
                 hash_cache,
             )
+        _validate_exact_assets(
+            index,
+            slide.get("exact_assets"),
+            errors,
+            hash_cache,
+        )
         _validate_overlay_policy(index, slide, errors, hash_cache)
         knowledge_route = slide.get("knowledge_route")
         if knowledge_route == FOCUSMEDIA_KNOWLEDGE_ROUTE:
@@ -786,6 +867,11 @@ def validate_page_plan(
                         for asset in item.get("overlay_assets", [])
                         if isinstance(asset, dict)
                     ),
+                    tuple(
+                        asset.get("id")
+                        for asset in item.get("exact_assets", [])
+                        if isinstance(asset, dict)
+                    ),
                     item.get("knowledge_route"),
                     item.get("specialist_route"),
                     item.get("specialist_asset_scope"),
@@ -805,6 +891,11 @@ def validate_page_plan(
                         for asset in item.get("overlay_assets", [])
                         if isinstance(asset, dict)
                     ),
+                    tuple(
+                        asset.get("id")
+                        for asset in item.get("exact_assets", [])
+                        if isinstance(asset, dict)
+                    ),
                     item.get("knowledge_route"),
                     item.get("specialist_route"),
                     item.get("specialist_asset_scope"),
@@ -821,19 +912,30 @@ def validate_page_plan(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("page_plan", type=Path)
-    parser.add_argument("--route-manifest", type=Path)
+    parser = argparse.ArgumentParser(
+        description="Validate Gate 1 from a read-only PPT God project snapshot"
+    )
+    parser.add_argument("project_snapshot", help="snapshot JSON file or HTTP(S) URL")
+    parser.add_argument(
+        "--route-manifest",
+        type=Path,
+        help=argparse.SUPPRESS,
+    )
     args = parser.parse_args()
 
-    plan = read_json(args.page_plan)
-    route = read_json(args.route_manifest) if args.route_manifest else None
-    errors = validate_page_plan(plan, route)
+    plan = load_json_source(args.project_snapshot)
+    if not is_project_snapshot(plan):
+        print(
+            "ERROR: new CLI workflow requires a PPT God project_snapshot; "
+            "legacy page_plan.json is read-only compatibility data",
+        )
+        return 1
+    errors = validate_page_plan(plan, None)
     if errors:
         for error in errors:
             print(f"ERROR: {error}")
         return 1
-    print(f"page plan verified: {len(plan['slides'])} slides")
+    print(f"Gate 1 content verified from project_snapshot: {len(plan['slides'])} slides")
     return 0
 
 

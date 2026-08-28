@@ -44,10 +44,9 @@
 
 ### 6.4 代表页规则被错误外推
 **症状**：样张本身成立，但全量应用后复杂页、截图页、图墙页出现重复标题、遮挡或结构退化。
-**检查方法**：为所有改动页标记页型家族；代表页只能批准同家族批次。未被代表页覆盖的高风险页型
-必须另设锚点，或明确采用 `shell-unify` / `preserve`。运行
-`templates/verify_page_families.py page_families.json`，确认没有漏分、重复归属或缺少代表页。该 JSON
-只对 3 页以上、跨页型或批量任务强制；局部 1–2 页任务在变更契约中核对即可。
+**检查方法**：从 PPT God `project_snapshot` 检查所有改动页的家族与生产类型。代表页只能批准同一家族
+和构造方式；同一家族首次出现 `hybrid` 或从零 `native_editable` 时必须有独立构造样张。运行
+`templates/verify_page_families.py project_snapshot.json`，确认没有漏分、重复归属或缺少已批准样张。
 
 ### 6.5 复杂证据页被过度重做
 **症状**：政策网页、设备结构、案例图墙、品牌截图的内部对应关系被卡片化、重排或遮罩破坏。
@@ -151,12 +150,16 @@
 5. 严重度为 [中] 的 → 尽量修
 6. 严重度为 [低] 的 → 时间允许就修
 7. 跑自动验证：`templates/verify_pptx.py source.pptx output.pptx`
-8. 多页、跨页型或批量任务跑页型家族验证：`templates/verify_page_families.py page_families.json`
-9. 跑字体验证：整册统计 + 对新增/重做页用 `--include-slides`、`--allowed-fonts`、
+8. 跑项目快照、页型家族与路线验证：`templates/verify_page_plan.py project_snapshot.json`、
+   `templates/verify_page_families.py project_snapshot.json`、
+   `templates/verify_route_integrity.py output.pptx project_snapshot.json`
+9. 正式交付再运行 `templates/verify_workflow_ready.py project_snapshot.json final_preflight.json`，确认四个 Gate、
+   问题复验、预检 revision 和全部页面装配均通过
+10. 跑字体验证：整册统计 + 对新增/重做页用 `--include-slides`、`--allowed-fonts`、
    `--fail-on-inherited` 做硬检查
-10. 若定义了统一底色，跑背景一致性验证：`templates/verify_background_consistency.py output.pptx --expected <HEX> --exclude-slides <纯图页>`
-11. 对局部修图跑边界验证：`templates/verify_local_image_edit.py source.png edited.png --mask x1,y1,x2,y2`
-12. 把同页型页面并排做 family contact sheet，确认样张规则没有跨页型误用
-13. 在用户实际使用的 PowerPoint/WPS 中抽查用户点名页、重做页和最高风险页
-14. 输出对比报告（见 workflows/04-verify.md）
+11. 若定义了统一底色，跑背景一致性验证：`templates/verify_background_consistency.py output.pptx --expected <HEX> --exclude-slides <纯图页>`
+12. 对局部修图跑边界验证：`templates/verify_local_image_edit.py source.png edited.png --mask x1,y1,x2,y2`
+13. 把同页型页面并排做 family contact sheet，确认样张规则没有跨页型误用
+14. 在用户实际使用的 PowerPoint/WPS 中抽查用户点名页、重做页和最高风险页
+15. 输出对比报告（见 workflows/04-verify.md）
 ```

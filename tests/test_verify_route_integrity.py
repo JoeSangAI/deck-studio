@@ -23,6 +23,23 @@ IMAGE_SLIDE = """<?xml version="1.0" encoding="UTF-8"?>
 </p:sld>
 """
 
+IMAGE_WITH_EMBEDDED_ASSET = """<?xml version="1.0" encoding="UTF-8"?>
+<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
+       xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+       xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <p:cSld><p:spTree><p:pic>
+    <p:blipFill><a:blip r:embed="rId1"/></p:blipFill>
+    <p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="12192000" cy="6858000"/></a:xfrm></p:spPr>
+  </p:pic></p:spTree></p:cSld>
+</p:sld>
+"""
+
+IMAGE_ASSET_RELS = """<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/full-slide.png"/>
+</Relationships>
+"""
+
 EDITABLE_SLIDE = """<?xml version="1.0" encoding="UTF-8"?>
 <p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
   <p:cSld><p:spTree><p:sp><p:txBody><a:p><a:r><a:t>可编辑正文内容</a:t></a:r></a:p></p:txBody></p:sp></p:spTree></p:cSld>
@@ -74,6 +91,24 @@ IMAGE_WITH_LOGO = """<?xml version="1.0" encoding="UTF-8"?>
     <p:pic><p:spPr><a:xfrm><a:off x="11000000" y="6200000"/><a:ext cx="600000" cy="300000"/></a:xfrm></p:spPr></p:pic>
   </p:spTree></p:cSld>
 </p:sld>
+"""
+
+IMAGE_WITH_EXACT_OVERLAY = """<?xml version="1.0" encoding="UTF-8"?>
+<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
+       xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+       xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <p:cSld><p:spTree>
+    <p:pic><p:blipFill><a:blip r:embed="rId1"/></p:blipFill><p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="12192000" cy="6858000"/></a:xfrm></p:spPr></p:pic>
+    <p:pic><p:blipFill><a:blip r:embed="rId2"/></p:blipFill><p:spPr><a:xfrm><a:off x="11000000" y="6200000"/><a:ext cx="600000" cy="300000"/></a:xfrm></p:spPr></p:pic>
+  </p:spTree></p:cSld>
+</p:sld>
+"""
+
+EXACT_OVERLAY_RELS = """<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/full-slide.png"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/logo.png"/>
+</Relationships>
 """
 
 EDITABLE_WITH_SPECIALIST_IMAGE = """<?xml version="1.0" encoding="UTF-8"?>
@@ -181,13 +216,73 @@ def test_image_route_rejects_two_full_slide_images(tmp_path):
 
 
 def test_image_route_allows_one_full_slide_image_and_logo(tmp_path):
+    pptx = tmp_path / "image-with-logo.pptx"
+    full_slide = b"approved full slide"
+    logo = b"exact approved logo"
+    logo_path = tmp_path / "logo.png"
+    logo_path.write_bytes(logo)
+    with zipfile.ZipFile(pptx, "w") as archive:
+        archive.writestr("ppt/presentation.xml", PRESENTATION)
+        archive.writestr("ppt/slides/slide1.xml", IMAGE_WITH_EXACT_OVERLAY)
+        archive.writestr("ppt/slides/_rels/slide1.xml.rels", EXACT_OVERLAY_RELS)
+        archive.writestr("ppt/media/full-slide.png", full_slide)
+        archive.writestr("ppt/media/logo.png", logo)
+    report = validate_routes(pptx, {"slides": [{
+        "slide": 1,
+        "mode": "image",
+        "overlay_policy": "logo-only",
+        "allow_logo_overlay": True,
+        "overlay_assets": [{
+            "id": "approved-logo",
+            "role": "logo",
+            "path": str(logo_path),
+            "sha256": hashlib.sha256(logo).hexdigest(),
+        }],
+    }]})
+    assert report["status"] == "pass"
+    assert report["issues"] == []
+
+
+def test_logo_overlay_requires_declared_exact_asset(tmp_path):
     report = validate_image_fixture(
         tmp_path,
         IMAGE_WITH_LOGO,
         allow_logo_overlay=True,
     )
-    assert report["status"] == "pass"
-    assert report["issues"] == []
+    assert report["status"] == "fail"
+    assert "overlay_assets_missing" in {
+        issue["code"] for issue in report["issues"]
+    }
+
+
+def test_logo_overlay_rejects_non_logo_asset(tmp_path):
+    pptx = tmp_path / "image-with-wrong-overlay-role.pptx"
+    full_slide = b"approved full slide"
+    overlay = b"qr image mislabeled as logo overlay"
+    overlay_path = tmp_path / "qr.png"
+    overlay_path.write_bytes(overlay)
+    with zipfile.ZipFile(pptx, "w") as archive:
+        archive.writestr("ppt/presentation.xml", PRESENTATION)
+        archive.writestr("ppt/slides/slide1.xml", IMAGE_WITH_EXACT_OVERLAY)
+        archive.writestr("ppt/slides/_rels/slide1.xml.rels", EXACT_OVERLAY_RELS)
+        archive.writestr("ppt/media/full-slide.png", full_slide)
+        archive.writestr("ppt/media/logo.png", overlay)
+    report = validate_routes(pptx, {"slides": [{
+        "slide": 1,
+        "mode": "image",
+        "overlay_policy": "logo-only",
+        "allow_logo_overlay": True,
+        "overlay_assets": [{
+            "id": "qr-code",
+            "role": "qr-code",
+            "path": str(overlay_path),
+            "sha256": hashlib.sha256(overlay).hexdigest(),
+        }],
+    }]})
+    assert report["status"] == "fail"
+    assert "logo_overlay_role_must_be_logo" in {
+        issue["code"] for issue in report["issues"]
+    }
 
 
 def test_image_route_rejects_unapproved_picture_overlay(tmp_path):
@@ -196,6 +291,110 @@ def test_image_route_rejects_unapproved_picture_overlay(tmp_path):
     assert "image_slide_has_unapproved_overlay_pictures" in {
         issue["code"] for issue in report["issues"]
     }
+
+
+def test_ppt_god_route_rejects_flattened_page_without_native_provenance(tmp_path):
+    pptx = tmp_path / "flattened-page.pptx"
+    build_single_slide_fixture(pptx, IMAGE_SLIDE)
+    report = validate_routes(pptx, {
+        "slides": [{
+            "slide": 1,
+            "mode": "image",
+            "production_route": "ppt-god-full-image",
+            "overlay_policy": "none",
+        }]
+    })
+    assert report["status"] == "fail"
+    assert "ppt_god_generation_provenance_missing" in {
+        issue["code"] for issue in report["issues"]
+    }
+
+
+def test_ppt_god_route_accepts_native_generation_provenance(tmp_path):
+    pptx = tmp_path / "ppt-god-native.pptx"
+    generated = tmp_path / "generated-slide.png"
+    image_bytes = b"ppt-god native generated full slide"
+    generated.write_bytes(image_bytes)
+    image_hash = hashlib.sha256(image_bytes).hexdigest()
+    with zipfile.ZipFile(pptx, "w") as archive:
+        archive.writestr("ppt/presentation.xml", PRESENTATION)
+        archive.writestr("ppt/slides/slide1.xml", IMAGE_WITH_EMBEDDED_ASSET)
+        archive.writestr("ppt/slides/_rels/slide1.xml.rels", IMAGE_ASSET_RELS)
+        archive.writestr("ppt/media/full-slide.png", image_bytes)
+
+    report = validate_routes(pptx, {
+        "slides": [{
+            "slide": 1,
+            "mode": "image",
+            "production_route": "ppt-god-full-image",
+            "overlay_policy": "none",
+            "generation_provenance": {
+                "producer": "ppt-god",
+                "method": "native-generate-slides",
+                "project_id": "project-123",
+                "page_num": 1,
+                "asset_path": str(generated),
+                "sha256": image_hash,
+            },
+        }]
+    })
+    assert report["status"] == "pass", json.dumps(report, ensure_ascii=False)
+
+
+def test_reference_fusion_rejects_flattened_page_without_sources(tmp_path):
+    pptx = tmp_path / "fake-reference-fusion.pptx"
+    build_single_slide_fixture(pptx, IMAGE_SLIDE)
+    report = validate_routes(pptx, {
+        "slides": [{
+            "slide": 1,
+            "mode": "image",
+            "production_route": "reference-fusion",
+            "overlay_policy": "none",
+        }]
+    })
+    codes = {issue["code"] for issue in report["issues"]}
+    assert report["status"] == "fail"
+    assert "reference_fusion_assets_missing" in codes
+    assert "reference_fusion_generation_provenance_missing" in codes
+
+
+def test_reference_fusion_accepts_verified_sources_and_output(tmp_path):
+    pptx = tmp_path / "verified-reference-fusion.pptx"
+    generated = tmp_path / "fused-slide.png"
+    reference = tmp_path / "reference-photo.jpg"
+    output_bytes = b"professionally generated reference fusion slide"
+    reference_bytes = b"approved reference photograph"
+    generated.write_bytes(output_bytes)
+    reference.write_bytes(reference_bytes)
+    output_hash = hashlib.sha256(output_bytes).hexdigest()
+    reference_hash = hashlib.sha256(reference_bytes).hexdigest()
+    with zipfile.ZipFile(pptx, "w") as archive:
+        archive.writestr("ppt/presentation.xml", PRESENTATION)
+        archive.writestr("ppt/slides/slide1.xml", IMAGE_WITH_EMBEDDED_ASSET)
+        archive.writestr("ppt/slides/_rels/slide1.xml.rels", IMAGE_ASSET_RELS)
+        archive.writestr("ppt/media/full-slide.png", output_bytes)
+
+    report = validate_routes(pptx, {
+        "slides": [{
+            "slide": 1,
+            "mode": "image",
+            "production_route": "reference-fusion",
+            "overlay_policy": "none",
+            "reference_assets": [{
+                "id": "research-photo",
+                "role": "subject-reference",
+                "path": str(reference),
+                "sha256": reference_hash,
+            }],
+            "generation_provenance": {
+                "producer": "imagegen",
+                "method": "reference-edit",
+                "asset_path": str(generated),
+                "sha256": output_hash,
+            },
+        }]
+    })
+    assert report["status"] == "pass", json.dumps(report, ensure_ascii=False)
 
 
 def test_precision_overlay_requires_declared_exact_asset_count(tmp_path):
@@ -247,5 +446,61 @@ def test_focusmedia_specialist_asset_must_be_embedded_byte_for_byte(tmp_path):
     report = validate_routes(pptx, route)
     assert report["status"] == "fail"
     assert "focusmedia_specialist_asset_not_embedded_exactly" in {
+        issue["code"] for issue in report["issues"]
+    }
+
+
+def test_editable_route_accepts_exact_client_asset(tmp_path):
+    pptx = tmp_path / "editable-with-product.pptx"
+    product = b"exact approved product image"
+    product_path = tmp_path / "approved-product.png"
+    product_path.write_bytes(product)
+    with zipfile.ZipFile(pptx, "w") as archive:
+        archive.writestr("ppt/presentation.xml", PRESENTATION)
+        archive.writestr("ppt/slides/slide1.xml", EDITABLE_WITH_SPECIALIST_IMAGE)
+        archive.writestr("ppt/slides/_rels/slide1.xml.rels", SPECIALIST_RELS)
+        archive.writestr("ppt/media/specialist.png", product)
+
+    report = validate_routes(pptx, {"slides": [{
+        "slide": 1,
+        "mode": "editable",
+        "production_route": "native-editable",
+        "requires": ["text"],
+        "exact_assets": [{
+            "id": "approved-product",
+            "role": "product",
+            "path": str(product_path),
+            "sha256": hashlib.sha256(product).hexdigest(),
+        }],
+    }]})
+    assert report["status"] == "pass", json.dumps(report, ensure_ascii=False)
+
+
+def test_editable_route_rejects_substituted_exact_client_asset(tmp_path):
+    pptx = tmp_path / "editable-with-substitute.pptx"
+    approved = b"approved client storyboard"
+    substitute = b"similar but fabricated storyboard"
+    approved_path = tmp_path / "approved-storyboard.png"
+    approved_path.write_bytes(approved)
+    with zipfile.ZipFile(pptx, "w") as archive:
+        archive.writestr("ppt/presentation.xml", PRESENTATION)
+        archive.writestr("ppt/slides/slide1.xml", EDITABLE_WITH_SPECIALIST_IMAGE)
+        archive.writestr("ppt/slides/_rels/slide1.xml.rels", SPECIALIST_RELS)
+        archive.writestr("ppt/media/specialist.png", substitute)
+
+    report = validate_routes(pptx, {"slides": [{
+        "slide": 1,
+        "mode": "editable",
+        "production_route": "native-editable",
+        "requires": ["text"],
+        "exact_assets": [{
+            "id": "approved-storyboard",
+            "role": "storyboard",
+            "path": str(approved_path),
+            "sha256": hashlib.sha256(approved).hexdigest(),
+        }],
+    }]})
+    assert report["status"] == "fail"
+    assert "exact_asset_not_embedded_exactly" in {
         issue["code"] for issue in report["issues"]
     }

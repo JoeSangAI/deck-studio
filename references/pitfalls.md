@@ -14,17 +14,20 @@ provenance：本文纪律来自一份返工三轮才过验的纯图 deck，动�
 
 ## 1. 唯一权威源纪律
 
-**文字只活在大纲 HTML 的 `<section class="page">`（网页版=手排富 HTML，纯图版=同 section 的 `data-title`/`data-sum`）；`deck.json` 是 `outline_to_deck.py` 的派生物，永不手改。** 改字流程：
+**PPT God `project_snapshot` 是正式内容、页序、证据、生产类型和审批状态的唯一来源；HTML 只描述视觉
+布局，`deck.json` 是一次性派生物。** 改字流程：
 
 ```
-改大纲 HTML 那一页的文字/属性
-python outline_to_deck.py outline.html            # 重新派生 deck.json（覆盖，安全）
+在 PPT God 修改页面并保存，获取同一 revision 的 project_snapshot
+按需调整大纲 HTML 的视觉布局属性
+python outline_to_deck.py outline.html --project-snapshot project_snapshot.json
 python gen_deck.py deck.json --only S07 --force   # 只重生变动页（其余命中缓存跳过）
 python inline_html.py deck.json outline.html      # 需自包含 HTML 时刷新
 ```
 
 - **永远单页增量，永不整片重跑**（4K 一张 120–140s + 计费）。`--only <id> --force` 是默认姿势。
-- 这正是取代旧产线**"HTML 和 specs.py 双份誊抄"**坑的设计：旧产线文字要在两处手抄，改一处忘另一处必错位、必对不上；现在文字单源，图号用 `data-id` 解耦（重排页只改 section 顺序，不错位）。
+- 这取代“HTML、页面计划和脚本多处誊抄”的旧产线：内容和状态只在 PPT God 修改，HTML 不再维护
+  第二份正式文案。
 - 个别版式不够用时，扩展大纲 schema 或脚本中的有界版式键并补测试；不要手改派生出的
   `deck.json`，否则重派生会丢改动，也会产生第二个内容源。
 - 派生后先 `gen_deck.py deck.json --dry-run` 打印每页 prompt，肉眼过一遍再进样张门。
@@ -79,7 +82,9 @@ python inline_html.py deck.json outline.html      # 需自包含 HTML 时刷新
 
 ## 6. 装配与体积
 
-- `assemble_pptx.py`：`slide_width=12192000, slide_height=6858000`（EMU，16:9），blank layout，`add_picture` 全幅；缺页/过小页补空白页并 exit 1（脚本已内建）。
+- `assemble_pptx.py` 只用于旧图片流水线的草稿：`slide_width=12192000, slide_height=6858000`（EMU，16:9），
+  blank layout，`add_picture` 全幅。它在写文件前检查全部 PNG，缺页/过小页直接失败，绝不补空白页；
+  `hybrid`、`native_editable` 和正式导出统一交给 PPT God Workflow Core。
 - 体积预期：4K PNG ~7MB/页。客户嫌大再瘦身：`inline_html.py` 装配时 PNG→JPEG（默认 width 1600 / quality 85），体积约 1/6、观感几乎无损——自包含 HTML 走这条。PPTX 想瘦身同理先转一页给用户比对。
 - 交付到云盘/挂载盘时留意大文件复制时间。
 
